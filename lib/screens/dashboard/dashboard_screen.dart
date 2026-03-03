@@ -26,12 +26,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _loadStats() async {
     final client = SupabaseService().client;
 
-    // Simplificando busca de stats p/ demonstração
-    final salesRes = await client.from(AppTables.vendas).select('valor_total');
+    // 1. Descobre o início e o fim do mês atual
+    final now = DateTime.now();
+    final startOfMonth = DateTime(now.year, now.month, 1);
+    // O dia "0" do mês seguinte é o último dia do mês atual
+    final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59); 
+
+    // 2. Busca apenas as vendas dentro desse intervalo (data_venda)
+    final salesRes = await client
+        .from(AppTables.vendas)
+        .select('valor_total')
+        .gte('data_venda', startOfMonth.toIso8601String())
+        .lte('data_venda', endOfMonth.toIso8601String());
+
+    // 3. Busca parcelas pendentes que vencem no mês atual (data_vencimento)
     final parcelsRes = await client
         .from(AppTables.parcelas)
         .select('valor')
-        .eq('status', 'pendente');
+        .eq('status', 'pendente')
+        .gte('data_vencimento', startOfMonth.toIso8601String())
+        .lte('data_vencimento', endOfMonth.toIso8601String());
+        
     final productsRes = await client.from(AppTables.produtos).select('tipo');
 
     double totalSales = 0;
@@ -92,7 +107,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 childAspectRatio: 1.2,
                 children: [
                   SummaryCard(
-                    title: 'Total Vendido',
+                    title: 'Vendido (Mês)', // Mudei o título para deixar claro!
                     value: AppFormatters.formatCurrency(_monthlySales),
                     icon: Icons.attach_money,
                     color: AppColors.primary,
