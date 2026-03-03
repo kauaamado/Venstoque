@@ -69,6 +69,8 @@ class _RegisterProductScreenState extends State<RegisterProductScreen> {
               TextFormField(
                 controller: _complementController,
                 decoration: const InputDecoration(labelText: 'Complemento'),
+                validator: (value) =>
+                    value == null || value.isEmpty ? 'Obrigatório' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
