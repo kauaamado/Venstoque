@@ -26,7 +26,7 @@ class ProdutoModel {
       id: map['id'],
       tipo: map['tipo'],
       modelo: map['modelo'],
-      complemento: map['complemento'] ?? '',
+      complemento: map['complemento'],
       fornecedor: map['fornecedor'] ?? '',
       precoCusto: (map['preco_custo'] as num).toDouble(),
       valorVenda: (map['valor_venda'] as num).toDouble(),

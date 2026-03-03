@@ -145,7 +145,7 @@ class _RegisterProductScreenState extends State<RegisterProductScreen> {
       final newProduct = ProdutoModel(
         modelo: _nameController.text,
         tipo: _selectedType!,
-        complemento: '',
+        complemento: _complementController.text,
         fornecedor: _supplierController.text,
         precoCusto: precoCusto,
         valorVenda: valorVenda,
@@ -171,6 +171,7 @@ class _RegisterProductScreenState extends State<RegisterProductScreen> {
   void dispose() {
     _nameController.dispose();
     _costController.dispose();
+    _complementController.dispose();
     _salePriceController.dispose();
     _supplierController.dispose();
     super.dispose();
