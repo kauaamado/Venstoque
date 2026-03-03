@@ -84,11 +84,19 @@ class SaleProvider with ChangeNotifier {
       );
 
       // 2. Manda pro Service (que vai jogar pro Supabase)
-      await _saleService.processSale(
-        venda: venda,
-        itens: _cart,
-        parcelas: parcelas,
-      );
+      if (parcelas != null && parcelas.isNotEmpty) {
+        await _saleService.processSale(
+          venda: venda, 
+          itens: _cart,
+          parcelas: parcelas,
+        );
+      }
+      else {
+        await _saleService.processSale(
+          venda: venda, 
+          itens: _cart,
+        );
+      }
 
       // Limpa tudo após o sucesso
       clear();
