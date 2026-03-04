@@ -18,7 +18,13 @@ class _RegisterEntryScreenState extends State<RegisterEntryScreen> {
   final _qtyController = TextEditingController();
   final _costController = TextEditingController();
   final _salePriceController = TextEditingController();
-  final _fornecedorController = TextEditingController();
+  final List<String> _fornecedores = [
+    'Papo de Boleiro', 
+    'Rasha', 
+    'Smart Mania', 
+    'Outros'
+  ];
+  String? _selectedFornecedor;
   String? _selectedType;
 
   ProdutoModel? _selectedProduct;
@@ -77,7 +83,10 @@ class _RegisterEntryScreenState extends State<RegisterEntryScreen> {
                     if (value != null) {
                       _costController.text = value.precoCusto.toString();
                       _salePriceController.text = value.valorVenda.toString();
-                      _fornecedorController.text = value.fornecedor;
+                      _complementController.text = value.complemento.toString();
+                      _selectedFornecedor = value.fornecedor.isNotEmpty
+                          ? value.fornecedor
+                          : null;
                     }
                   });
                 },
@@ -113,10 +122,29 @@ class _RegisterEntryScreenState extends State<RegisterEntryScreen> {
                 validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
               ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _fornecedorController,
-                decoration: const InputDecoration(labelText: 'Fornecedor'),
-              ),
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Fornecedor',
+                ),
+                value: _selectedFornecedor,
+                items: _fornecedores.map((fornecedor) {
+                  return DropdownMenuItem(
+                    value: fornecedor,
+                    child: Text(fornecedor),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedFornecedor = value;
+                  });
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Por favor, selecione um fornecedor';
+                  }
+                  return null;
+                },
+              ),              
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
@@ -154,7 +182,7 @@ class _RegisterEntryScreenState extends State<RegisterEntryScreen> {
       produtoId: _selectedProduct!.id!,
       quantidade: _parseInt(_qtyController.text),
       custoUnitario: _parseCurrency(_costController.text),
-      fornecedor: _fornecedorController.text,
+      fornecedor: _selectedFornecedor ?? '',
       dataEntrada: DateTime.now(),
       complemento: _complementController.text,
       novoValorVenda: _parseCurrency(_salePriceController.text),
