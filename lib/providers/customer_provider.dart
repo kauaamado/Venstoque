@@ -197,7 +197,7 @@ class CustomerProvider with ChangeNotifier {
     _isLoadingHistory = true;
     notifyListeners();
     try {
-      // 1. Atualizamos a query para trazer o tipo de pagamento e o número de parcelas
+      // 1. A query agora garante que está puxando a coluna numero_parcela
       final vendas = await _client
           .from(AppTables.vendas)
           .select(
@@ -211,19 +211,34 @@ class CustomerProvider with ChangeNotifier {
 
       for (var venda in (vendas as List)) {
         
-        // 2. Extrai a quantidade de parcelas se houver
+        // --- LÓGICA À PROVA DE BALAS PARA PARCELAS ---
         int numParcelas = 1;
         final parcelasList = venda['parcelas'] as List?;
+        
         if (parcelasList != null && parcelasList.isNotEmpty) {
-          numParcelas = parcelasList[0]['numero_parcela'] ?? 1;
+          int maxParcelaBanco = 1;
+          
+          // Varre as parcelas e procura o maior número salvo na coluna 'numero_parcela'
+          for (var p in parcelasList) {
+            final n = p['numero_parcela'];
+            if (n != null) {
+              int parsedN = (n is num) ? n.toInt() : int.tryParse(n.toString()) ?? 1;
+              if (parsedN > maxParcelaBanco) {
+                maxParcelaBanco = parsedN;
+              }
+            }
+          }
+          
+          // Pega o maior valor entre o "tamanho da lista" (vendas novas) e o "maior número salvo" (vendas antigas)
+          numParcelas = maxParcelaBanco > parcelasList.length ? maxParcelaBanco : parcelasList.length;
         }
+        // ----------------------------------------------
 
         final itensList = venda['itens_venda'] as List?;
         if (itensList != null) {
           for (var item in itensList) {
             final produtoId = item['produto_id'];
             
-            // Busca o nome do produto com tratamento de erro
             String nomeProduto = 'Produto Indisponível';
             if (produtoId != null) {
               try {
@@ -236,13 +251,12 @@ class CustomerProvider with ChangeNotifier {
               } catch (_) {}
             }
 
-            // 3. Adiciona as informações extras ao mapa que a UI vai ler
             history.add({
               'produto': nomeProduto,
               'data': venda['data_venda'],
               'valor': (venda['valor_total'] as num).toDouble(),
-              'tipo_pagamento': venda['tipo_pagamento'], // <-- Enviado para a UI
-              'numero_parcela': numParcelas,            // <-- Enviado para a UI
+              'tipo_pagamento': venda['tipo_pagamento'], 
+              'numero_parcela': numParcelas, // Enviando no singular, do jeito que a sua tela está esperando!
             });
           }
         }

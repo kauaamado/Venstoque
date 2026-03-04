@@ -141,16 +141,14 @@ class CustomerProfileScreen extends StatelessWidget {
                       valorTexto = rawValor.toString();
                     }
 
-                    // --- NOVA LÓGICA DE PARCELAS ---
                     final rawParcelas = history['numero_parcela']; 
                     final int? numParcelas = (rawParcelas is num) 
                         ? rawParcelas.toInt() 
                         : int.tryParse(rawParcelas?.toString() ?? '');
                     
                     if (numParcelas != null && numParcelas > 1) {
-                      valorTexto = '$valorTexto em ${numParcelas}x'; // <-- Mudança aplicada aqui!
+                      valorTexto = '$valorTexto em ${numParcelas}x'; 
                     }
-                    // -------------------------------
 
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
