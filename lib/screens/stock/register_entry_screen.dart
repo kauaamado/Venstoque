@@ -183,7 +183,6 @@ class _RegisterEntryScreenState extends State<RegisterEntryScreen> {
       quantidade: _parseInt(_qtyController.text),
       custoUnitario: _parseCurrency(_costController.text),
       fornecedor: _selectedFornecedor ?? '',
-      dataEntrada: DateTime.now(),
       complemento: _complementController.text,
       novoValorVenda: _parseCurrency(_salePriceController.text),
     );

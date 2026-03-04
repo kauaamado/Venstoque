@@ -4,7 +4,6 @@ class EstoqueModel {
   final int quantidade;
   final double custoUnitario;
   final String fornecedor;
-  final DateTime dataEntrada;
   final String complemento;
   final double novoValorVenda;
 
@@ -14,7 +13,6 @@ class EstoqueModel {
     required this.quantidade,
     required this.custoUnitario,
     required this.fornecedor,
-    required this.dataEntrada,
     required this.complemento,
     required this.novoValorVenda,
   });
@@ -28,9 +26,6 @@ class EstoqueModel {
           : int.tryParse(map['quantidade']?.toString() ?? '') ?? 0,
       custoUnitario: (map['custo_unitario'] as num?)?.toDouble() ?? 0.0,
       fornecedor: map['fornecedor']?.toString() ?? '',
-      dataEntrada: map['data_entrada'] != null
-          ? DateTime.parse(map['data_entrada'].toString())
-          : DateTime.now(),
       complemento: map['complemento']?.toString() ?? '',
       novoValorVenda: (map['novo_valor_venda'] as num?)?.toDouble() ?? 0.0,
     );
@@ -45,7 +40,6 @@ class EstoqueModel {
       'quantidade': quantidade,
       'custo_unitario': custoUnitario,
       'fornecedor': fornecedor,
-      'data_entrada': dataEntrada.toIso8601String(),
     };
   }
 }
