@@ -197,10 +197,11 @@ class CustomerProvider with ChangeNotifier {
     _isLoadingHistory = true;
     notifyListeners();
     try {
+      // 1. Atualizamos a query para trazer o tipo de pagamento e o número de parcelas
       final vendas = await _client
           .from(AppTables.vendas)
           .select(
-              'id, data_venda, valor_total, itens_venda(produto_id, quantidade)')
+              'id, data_venda, valor_total, tipo_pagamento, parcelas(numero_parcela), itens_venda(produto_id, quantidade)')
           .eq('cliente_id', customerId)
           .gte('data_venda',
               DateTime.now().subtract(Duration(days: days)).toIso8601String())
@@ -208,21 +209,42 @@ class CustomerProvider with ChangeNotifier {
 
       final List<Map<String, dynamic>> history = [];
 
-      for (var venda in vendas) {
-        for (var item in venda['itens_venda']) {
-          final produtoId = item['produto_id'];
-          final produto = await _client
-              .from(AppTables.produtos)
-              .select('modelo')
-              .eq('id', produtoId)
-              .single();
+      for (var venda in (vendas as List)) {
+        
+        // 2. Extrai a quantidade de parcelas se houver
+        int numParcelas = 1;
+        final parcelasList = venda['parcelas'] as List?;
+        if (parcelasList != null && parcelasList.isNotEmpty) {
+          numParcelas = parcelasList[0]['numero_parcela'] ?? 1;
+        }
 
-          history.add({
-            'produto': produto['modelo'],
-            'data': venda['data_venda'],
-            // Armazena o valor como número bruto; formatação fica para a UI
-            'valor': (venda['valor_total'] as num).toDouble(),
-          });
+        final itensList = venda['itens_venda'] as List?;
+        if (itensList != null) {
+          for (var item in itensList) {
+            final produtoId = item['produto_id'];
+            
+            // Busca o nome do produto com tratamento de erro
+            String nomeProduto = 'Produto Indisponível';
+            if (produtoId != null) {
+              try {
+                final produto = await _client
+                    .from(AppTables.produtos)
+                    .select('modelo')
+                    .eq('id', produtoId)
+                    .single();
+                nomeProduto = produto['modelo'] ?? nomeProduto;
+              } catch (_) {}
+            }
+
+            // 3. Adiciona as informações extras ao mapa que a UI vai ler
+            history.add({
+              'produto': nomeProduto,
+              'data': venda['data_venda'],
+              'valor': (venda['valor_total'] as num).toDouble(),
+              'tipo_pagamento': venda['tipo_pagamento'], // <-- Enviado para a UI
+              'numero_parcela': numParcelas,            // <-- Enviado para a UI
+            });
+          }
         }
       }
 

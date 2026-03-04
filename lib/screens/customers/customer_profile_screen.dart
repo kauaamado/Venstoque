@@ -114,6 +114,16 @@ class CustomerProfileScreen extends StatelessWidget {
                 if (provider.isLoadingHistory) {
                   return const Center(child: CircularProgressIndicator());
                 }
+
+                // Proteção caso o cliente não tenha histórico no período
+                if (provider.customerHistory.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16.0),
+                    child: Text('Nenhum histórico encontrado para este período.', 
+                                style: TextStyle(color: Colors.grey)),
+                  );
+                }
+
                 return ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -121,6 +131,7 @@ class CustomerProfileScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final history = provider.customerHistory[index];
                     final rawValor = history['valor'];
+                    
                     String valorTexto;
                     if (rawValor is num) {
                       valorTexto = context
@@ -129,8 +140,21 @@ class CustomerProfileScreen extends StatelessWidget {
                     } else {
                       valorTexto = rawValor.toString();
                     }
+
+                    // --- NOVA LÓGICA DE PARCELAS ---
+                    final rawParcelas = history['numero_parcela']; 
+                    final int? numParcelas = (rawParcelas is num) 
+                        ? rawParcelas.toInt() 
+                        : int.tryParse(rawParcelas?.toString() ?? '');
+                    
+                    if (numParcelas != null && numParcelas > 1) {
+                      valorTexto = '$valorTexto em ${numParcelas}x'; // <-- Mudança aplicada aqui!
+                    }
+                    // -------------------------------
+
                     return ListTile(
-                      title: Text(history['produto']),
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(history['produto'] ?? 'Produto'),
                       subtitle: Text(
                         'Data: ${AppFormatters.formatDate(DateTime.parse(history['data']))}',
                       ),
@@ -139,15 +163,21 @@ class CustomerProfileScreen extends StatelessWidget {
                         style: const TextStyle(
                           color: AppColors.primary,
                           fontWeight: FontWeight.bold,
+                          fontSize: 15,
                         ),
                       ),
-                      // Adicionar tipo de pagamento ao lado do nome do produto
-                      leading: Text(
-                        history['tipo_pagamento'] ?? '-',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
+                      leading: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            history['tipo_pagamento']?.toString().toUpperCase().replaceAll('_', ' ') ?? '-',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   },

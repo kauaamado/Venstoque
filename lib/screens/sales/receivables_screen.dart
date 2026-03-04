@@ -44,12 +44,10 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
     setState(() {
       switch (_selectedFilter) {
         case 'Valor Pendente (Crescente)':
-          _data
-              .sort((a, b) => (a['valor'] as num).compareTo(b['valor'] as num));
+          _data.sort((a, b) => (a['valor'] as num).compareTo(b['valor'] as num));
           break;
         case 'Valor Pendente (Decrescente)':
-          _data
-              .sort((a, b) => (b['valor'] as num).compareTo(a['valor'] as num));
+          _data.sort((a, b) => (b['valor'] as num).compareTo(a['valor'] as num));
           break;
         case 'Data de Vencimento (Mais Próxima)':
           _data.sort((a, b) => DateTime.parse(a['data_vencimento'])
@@ -61,6 +59,75 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
           break;
       }
     });
+  }
+
+  void _showQuitarDialog(Map<String, dynamic> item, String nomeCliente, String nomeProduto, double valor, DateTime? dueDate) {
+    final String vendaId = item['venda_id'] ?? '';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Como deseja quitar?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Cliente: $nomeCliente'),
+            Text('Produto: $nomeProduto', style: const TextStyle(fontWeight: FontWeight.bold)), // Mostra o produto no Pop-up também!
+            const SizedBox(height: 8),
+            Text('Valor desta parcela: ${AppFormatters.formatCurrency(valor)}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context); 
+              await _processarQuitacao(item['id'], false); 
+            },
+            child: const Text('QUITAR UMA', style: TextStyle(color: Colors.orange)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context); 
+              await _processarQuitacao(vendaId, true);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text('QUITAR TUDO', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _processarQuitacao(String id, bool quitarTudo) async {
+    showDialog(
+      context: context, 
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator())
+    );
+
+    try {
+      if (quitarTudo) {
+        await _service.markAllParcelsAsPaid(id);
+      } else {
+        await _service.markParcelAsPaid(id);
+      }
+      
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Pagamento registrado com sucesso!'), backgroundColor: Colors.green),
+        );
+        _load(); 
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao quitar: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override
@@ -96,8 +163,8 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
                       horizontal: 16,
                     ),
                   ),
-                value: _filterOptions.contains(_selectedFilter) ? _selectedFilter : null,
-                items: _filterOptions
+                  value: _filterOptions.contains(_selectedFilter) ? _selectedFilter : null,
+                  items: _filterOptions
                       .map(
                         (filter) => DropdownMenuItem(
                           value: filter,
@@ -130,76 +197,121 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
                         ),
                       )
                     : ListView.separated(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: _data.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (context, index) {
                           final item = _data[index];
 
-                          // Tenta primeiro um campo direto "cliente"
+                          // NOVO: Lógica de parsing para extrair nome do cliente e dos produtos
                           String cliente = '';
-                          final directCliente = item['cliente'];
-                          if (directCliente != null &&
-                              directCliente.toString().trim().isNotEmpty) {
-                            cliente = directCliente.toString();
-                          } else {
-                            // Estrutura aninhada vinda do Supabase:
-                            // vendas(cliente_id, clientes(nome))
-                            final vendas = item['vendas'];
-                            if (vendas is Map<String, dynamic>) {
-                              final nestedCliente = vendas['clientes'];
-                              if (nestedCliente is Map<String, dynamic>) {
-                                final nome = nestedCliente['nome'];
-                                if (nome != null &&
-                                    nome.toString().trim().isNotEmpty) {
-                                  cliente = nome.toString();
+                          String produtosDesc = '';
+                          
+                          final vendas = item['vendas'];
+                          if (vendas is Map<String, dynamic>) {
+                            final nestedCliente = vendas['clientes'];
+                            if (nestedCliente is Map<String, dynamic>) {
+                              cliente = nestedCliente['nome']?.toString() ?? '';
+                            }
+                            
+                            // Acessa a lista de itens da venda para extrair os produtos
+                            final itensVenda = vendas['itens_venda'];
+                            if (itensVenda is List) {
+                              List<String> nomesProdutos = [];
+                              for (var iv in itensVenda) {
+                                final prod = iv['produtos'];
+                                if (prod is Map<String, dynamic> && prod['modelo'] != null) {
+                                  nomesProdutos.add(prod['modelo'].toString());
                                 }
                               }
+                              produtosDesc = nomesProdutos.join(', ');
                             }
                           }
-
-                          if (cliente.isEmpty) {
-                            cliente = 'Cliente não informado';
-                          }
+                          if (cliente.isEmpty) cliente = 'Cliente não informado';
+                          if (produtosDesc.isEmpty) produtosDesc = 'Produto não especificado';
+                          
                           final rawDueDate = item['data_vencimento'];
                           DateTime? dueDate;
-                          if (rawDueDate != null &&
-                              rawDueDate.toString().isNotEmpty) {
+                          if (rawDueDate != null && rawDueDate.toString().isNotEmpty) {
                             try {
                               dueDate = DateTime.parse(rawDueDate.toString());
-                            } catch (_) {
-                              dueDate = null;
-                            }
+                            } catch (_) {}
                           }
+                          
                           final valor = (item['valor'] as num?)?.toDouble() ?? 0.0;
+                          final parcelaAtual = item['numero_parcela']?.toString() ?? '1'; // Para mostrar de qual parcela se trata
 
-                          return Card(
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(color: Colors.grey.shade200),
+                          return Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade700, width: 1),
+                              borderRadius: BorderRadius.circular(8),
                             ),
                             child: ListTile(
-                              contentPadding: const EdgeInsets.all(12),
-                              title: Text(
-                                cliente,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              title: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    cliente,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                                  ),
+                                  Text(
+                                    'P: $parcelaAtual', // Exibe o número da parcela no canto superior
+                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade400, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                              subtitle: Padding(
+                                padding: const EdgeInsets.only(top: 4.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Exibe o Produto!
+                                    Text(
+                                      produtosDesc,
+                                      style: TextStyle(color: Colors.grey.shade300, fontSize: 13),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      dueDate != null
+                                          ? 'Vence em: ${AppFormatters.formatDate(dueDate)}'
+                                          : 'Sem data',
+                                      style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              subtitle: Text(
-                                dueDate != null
-                                    ? 'Vence em: ${AppFormatters.formatDate(dueDate)}'
-                                    : 'Data de vencimento não informada',
-                              ),
-                              trailing: Text(
-                                AppFormatters.formatCurrency(valor),
-                                style: const TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              trailing: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    AppFormatters.formatCurrency(valor),
+                                    style: const TextStyle(
+                                      color: Colors.greenAccent,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  InkWell(
+                                    onTap: () => _showQuitarDialog(item, cliente, produtosDesc, valor, dueDate),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        'QUITAR',
+                                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           );

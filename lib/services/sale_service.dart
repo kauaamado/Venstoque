@@ -12,9 +12,6 @@ class SaleService {
     required List<ItemVendaModel> itens,
     List<ParcelaModel>? parcelas,
   }) async {
-    // Nota: Em produção, ideal usar um RPC do Supabase para transação atômica.
-    // Aqui faremos sequencial para simplicidade do exemplo.
-    
     // 1. Criar a venda
     final vendaRes = await _client
         .from(AppTables.vendas)
@@ -47,9 +44,10 @@ class SaleService {
   }
 
   Future<List<Map<String, dynamic>>> getReceivables() async {
+    // NOVO: Query estendida para buscar as ligações até o modelo do produto
     final res = await _client
         .from(AppTables.parcelas)
-        .select('*, vendas(cliente_id, clientes(nome))')
+        .select('*, vendas(cliente_id, clientes(nome), itens_venda(produtos(modelo)))')
         .eq('status', 'pendente')
         .order('data_vencimento', ascending: true);
     return List<Map<String, dynamic>>.from(res);
@@ -60,5 +58,12 @@ class SaleService {
       'status': 'pago',
       'data_pagamento': DateTime.now().toIso8601String(),
     }).eq('id', id);
+  }
+
+  Future<void> markAllParcelsAsPaid(String vendaId) async {
+    await _client.from(AppTables.parcelas).update({
+      'status': 'pago',
+      'data_pagamento': DateTime.now().toIso8601String(),
+    }).eq('venda_id', vendaId).eq('status', 'pendente');
   }
 }

@@ -97,10 +97,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           const SizedBox(height: 16),
           const Text('Nenhum cliente cadastrado. Cadastre um cliente para prosseguir.'),
         ] else ...[
-          // Substituído o erro da lista pelo spread operator ...
           ListView.builder(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(), // Evita conflito de rolagem com o Stepper
+            physics: const NeverScrollableScrollPhysics(),
             itemCount: customers.length,
             itemBuilder: (context, index) {
               final c = customers[index];
@@ -244,7 +243,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   void _finalize() async {
     final saleProvider = context.read<SaleProvider>();
-    int parcelasCount = 1; // Movida para dentro do método para corrigir o escopo
+    int parcelasCount = 1;
 
     if (saleProvider.paymentType == 'fiado' || saleProvider.paymentType == 'parcelado') {
       final selectedDate = await showDatePicker(
@@ -252,7 +251,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         initialDate: DateTime.now().add(const Duration(days: 30)),
         firstDate: DateTime.now(),
         lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
-        helpText: 'Selecione a Data de Vencimento',
+        helpText: 'Selecione a Data do 1º Vencimento',
       );
 
       if (selectedDate == null) return;
@@ -268,7 +267,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                 keyboardType: TextInputType.number,
                 onChanged: (value) => count = int.tryParse(value) ?? 1,
                 decoration: const InputDecoration(hintText: 'Ex: 3'),
-                style: const TextStyle(color: Colors.black), // Garante contraste no input
+                style: const TextStyle(color: Colors.black),
               ),
               actions: [
                 TextButton(
@@ -282,15 +281,24 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         if (result != null) parcelasCount = result;
       }
 
-      final parcela = ParcelaModel(
-        vendaId: '',
-        numeroParcela: parcelasCount,
-        valor: saleProvider.total,
-        dataVencimento: selectedDate,
-        status: 'pendente',
-      );
+      List<ParcelaModel> parcelas = [];
+      double valorDaParcela = saleProvider.total / parcelasCount;
 
-      _executeSale(saleProvider, [parcela]);
+      for (int i = 1; i <= parcelasCount; i++) {
+        // NOVO: Adiciona meses exatos em vez de 30 dias para manter o mesmo dia do mês.
+        // O Flutter entende que, se foi dia 5, o próximo mês (selectedDate.month + i - 1) também cai no dia 5.
+        DateTime dataVenc = DateTime(selectedDate.year, selectedDate.month + (i - 1), selectedDate.day);
+
+        parcelas.add(ParcelaModel(
+          vendaId: '',
+          numeroParcela: i,
+          valor: valorDaParcela,
+          dataVencimento: dataVenc,
+          status: 'pendente',
+        ));
+      }
+
+      _executeSale(saleProvider, parcelas);
     } else {
       _executeSale(saleProvider, null);
     }
