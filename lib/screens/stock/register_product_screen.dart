@@ -17,8 +17,9 @@ class _RegisterProductScreenState extends State<RegisterProductScreen> {
   final _complementController = TextEditingController();
   final _costController = TextEditingController();
   final _salePriceController = TextEditingController();
-  final _supplierController = TextEditingController();
+  
   String? _selectedType;
+  String? _selectedFornecedor; // <-- Nova variável para o fornecedor selecionado
 
   final List<String> _productTypes = [
     'Perfumes',
@@ -28,6 +29,14 @@ class _RegisterProductScreenState extends State<RegisterProductScreen> {
     'Garrafas',
     'Camisas',
     'Canecas',
+  ];
+
+  // <-- Lista fixa de fornecedores
+  final List<String> _fornecedores = [
+    'Papo de Boleiro',
+    'Rasha',
+    'Smart Mania',
+    'Outros',
   ];
 
   @override
@@ -91,12 +100,26 @@ class _RegisterProductScreenState extends State<RegisterProductScreen> {
                     value == null || value.isEmpty ? 'Obrigatório' : null,
               ),
               const SizedBox(height: 24),
-              TextFormField(
-                controller: _supplierController,
+              
+              // <-- Dropdown de Fornecedores substituiu o TextFormField aqui
+              DropdownButtonFormField<String>(
                 decoration: const InputDecoration(labelText: 'Fornecedor'),
+                value: _selectedFornecedor,
+                items: _fornecedores
+                    .map((fornecedor) => DropdownMenuItem(
+                          value: fornecedor,
+                          child: Text(fornecedor),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedFornecedor = value;
+                  });
+                },
                 validator: (value) =>
                     value == null || value.isEmpty ? 'Obrigatório' : null,
               ),
+
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
@@ -146,7 +169,7 @@ class _RegisterProductScreenState extends State<RegisterProductScreen> {
         modelo: _nameController.text,
         tipo: _selectedType!,
         complemento: _complementController.text,
-        fornecedor: _supplierController.text,
+        fornecedor: _selectedFornecedor!, // <-- Usando a variável do dropdown
         precoCusto: precoCusto,
         valorVenda: valorVenda,
         quantidadeEstoque: 0,
@@ -173,7 +196,7 @@ class _RegisterProductScreenState extends State<RegisterProductScreen> {
     _costController.dispose();
     _complementController.dispose();
     _salePriceController.dispose();
-    _supplierController.dispose();
+    // _supplierController.dispose(); <-- Removido daqui também
     super.dispose();
   }
 }
