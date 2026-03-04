@@ -1,4 +1,2 @@
 faça as seguintes alterações no aplicativo:
-- ter uma lógica para exibir no próprio app quantos R$ serão cada parcela;
-- na tela de receber, um botão de confirmar recebimento do pagamento (um botão para cada cliente) e que defina o status da tabela *parcelas* de uma parcela como 'pago';
-- parte de venda, caso não tenha estoque suficiente do produto, exibir um aviso informando isso na tela (como um pop-up que possui um X para fechar);
+- adicionar botão de enviar boleto pelo whatsapp;

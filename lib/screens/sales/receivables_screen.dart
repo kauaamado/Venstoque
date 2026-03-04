@@ -63,40 +63,149 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
 
   void _showQuitarDialog(Map<String, dynamic> item, String nomeCliente, String nomeProduto, double valor, DateTime? dueDate) {
     final String vendaId = item['venda_id'] ?? '';
+    final String parcelaId = item['id']; // Pega o ID da parcela específica
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Como deseja quitar?'),
+        title: const Text('Opções de Pagamento'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Cliente: $nomeCliente'),
-            Text('Produto: $nomeProduto', style: const TextStyle(fontWeight: FontWeight.bold)), // Mostra o produto no Pop-up também!
+            Text('Produto: $nomeProduto', style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Text('Valor desta parcela: ${AppFormatters.formatCurrency(valor)}'),
           ],
         ),
         actions: [
+          // Organizado em coluna para acomodar as 3 opções sem quebrar o layout
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.pop(context); // Fecha o dialog atual
+                  _showPartialPaymentDialog(parcelaId, valor); // Abre o dialog de pagamento parcial
+                },
+                style: OutlinedButton.styleFrom(backgroundColor: Colors.blue),
+                child: const Text('PAGAMENTO PARCIAL', style: TextStyle(color: Colors.white),),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context); 
+                  await _processarQuitacao(parcelaId, false); 
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                child: const Text('QUITAR ESTA PARCELA', style: TextStyle(color: Colors.white)),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context); 
+                  await _processarQuitacao(vendaId, true);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                child: const Text('QUITAR TODA A COMPRA', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  // NOVO: Dialog para receber o valor do pagamento parcial
+  void _showPartialPaymentDialog(String parcelaId, double valorTotal) {
+    final controller = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Pagamento Parcial'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Valor atual: ${AppFormatters.formatCurrency(valorTotal)}'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Valor Recebido (R\$)',
+                hintText: 'Ex: 50.00',
+                border: OutlineInputBorder(),
+              ),
+              style: const TextStyle(color: Colors.black), // Garante contraste no input
+            ),
+          ],
+        ),
+        actions: [
           TextButton(
-            onPressed: () async {
-              Navigator.pop(context); 
-              await _processarQuitacao(item['id'], false); 
-            },
-            child: const Text('QUITAR UMA', style: TextStyle(color: Colors.orange)),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context); 
-              await _processarQuitacao(vendaId, true);
+              // Troca vírgula por ponto para evitar erro de parse
+              final input = controller.text.replaceAll(',', '.');
+              final valorPago = double.tryParse(input);
+
+              if (valorPago == null || valorPago <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Digite um valor válido.'), backgroundColor: Colors.red),
+                );
+                return;
+              }
+
+              if (valorPago >= valorTotal) {
+                // Se o cliente pagou tudo ou a mais, quita a parcela inteira
+                Navigator.pop(context);
+                await _processarQuitacao(parcelaId, false);
+              } else {
+                // Se pagou menos, processa o abatimento
+                Navigator.pop(context);
+                await _processarPagamentoParcial(parcelaId, valorTotal, valorPago);
+              }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text('QUITAR TUDO', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            child: const Text('Confirmar', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
+  }
+
+  // NOVO: Processa a lógica de abater o valor no banco de dados
+  Future<void> _processarPagamentoParcial(String parcelaId, double valorTotal, double valorPago) async {
+    showDialog(
+      context: context, 
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator())
+    );
+
+    try {
+      final double restante = valorTotal - valorPago;
+      await _service.payPartialParcel(parcelaId, restante);
+      
+      if (mounted) {
+        Navigator.pop(context); 
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Pagamento parcial registrado!'), backgroundColor: Colors.blue),
+        );
+        _load(); // Recarrega a tela para atualizar o valor no card
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao registrar: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   Future<void> _processarQuitacao(String id, bool quitarTudo) async {
@@ -203,7 +312,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
                         itemBuilder: (context, index) {
                           final item = _data[index];
 
-                          // NOVO: Lógica de parsing para extrair nome do cliente e dos produtos
+                          // Lógica de parsing para extrair nome do cliente e dos produtos
                           String cliente = '';
                           String produtosDesc = '';
                           

@@ -44,7 +44,7 @@ class SaleService {
   }
 
   Future<List<Map<String, dynamic>>> getReceivables() async {
-    // NOVO: Query estendida para buscar as ligações até o modelo do produto
+    // Query estendida para buscar as ligações até o modelo do produto
     final res = await _client
         .from(AppTables.parcelas)
         .select('*, vendas(cliente_id, clientes(nome), itens_venda(produtos(modelo)))')
@@ -65,5 +65,12 @@ class SaleService {
       'status': 'pago',
       'data_pagamento': DateTime.now().toIso8601String(),
     }).eq('venda_id', vendaId).eq('status', 'pendente');
+  }
+
+  // NOVO: Método para abater o valor de um pagamento parcial
+  Future<void> payPartialParcel(String id, double remainingValue) async {
+    await _client.from(AppTables.parcelas).update({
+      'valor': remainingValue, 
+    }).eq('id', id);
   }
 }
