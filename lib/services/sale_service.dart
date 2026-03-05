@@ -47,7 +47,7 @@ class SaleService {
     // Query estendida para buscar as ligações até o modelo do produto
     final res = await _client
         .from(AppTables.parcelas)
-        .select('*, vendas(cliente_id, clientes(nome), itens_venda(produtos(modelo)))')
+        .select('*, vendas(cliente_id, clientes(nome, celular), itens_venda(produtos(modelo)))')
         .eq('status', 'pendente')
         .order('data_vencimento', ascending: true);
     return List<Map<String, dynamic>>.from(res);

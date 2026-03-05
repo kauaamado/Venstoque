@@ -37,7 +37,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         type: StepperType.horizontal,
         currentStep: _currentStep,
         onStepContinue: () {
-          if (_currentStep == 0 && saleProvider.selectedCustomer == null) return;
+          if (_currentStep == 0 && saleProvider.selectedCustomer == null)
+            return;
           if (_currentStep == 1 && saleProvider.cart.isEmpty) return;
           if (_currentStep < 2) {
             setState(() => _currentStep++);
@@ -95,7 +96,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         ),
         if (customers.isEmpty) ...[
           const SizedBox(height: 16),
-          const Text('Nenhum cliente cadastrado. Cadastre um cliente para prosseguir.'),
+          const Text(
+              'Nenhum cliente cadastrado. Cadastre um cliente para prosseguir.'),
         ] else ...[
           ListView.builder(
             shrinkWrap: true,
@@ -109,13 +111,15 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: isSelected ? AppColors.primary : Colors.grey.shade600,
+                    color:
+                        isSelected ? AppColors.primary : Colors.grey.shade600,
                     width: isSelected ? 2 : 1,
                   ),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   title: Text(
                     c.nome,
                     style: const TextStyle(
@@ -128,7 +132,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                     padding: const EdgeInsets.only(top: 4.0),
                     child: Text(
                       c.bairro,
-                      style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
+                      style:
+                          TextStyle(fontSize: 14, color: Colors.grey.shade400),
                     ),
                   ),
                   trailing: isSelected
@@ -156,7 +161,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
             labelText: 'Adicionar Produto',
             border: OutlineInputBorder(),
           ),
-          items: products.map((p) => DropdownMenuItem(value: p.id, child: Text(p.modelo))).toList(),
+          items: products
+              .map((p) => DropdownMenuItem(value: p.id, child: Text(p.modelo)))
+              .toList(),
           onChanged: (id) {
             if (id != null) {
               final prod = products.firstWhere((p) => p.id == id);
@@ -178,7 +185,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 title: Text(
                   item.produtoNome ?? '',
                   style: const TextStyle(
@@ -195,8 +203,10 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                   ),
                 ),
                 trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                  onPressed: () => context.read<SaleProvider>().removeFromCart(index),
+                  icon:
+                      const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  onPressed: () =>
+                      context.read<SaleProvider>().removeFromCart(index),
                 ),
               ),
             );
@@ -205,7 +215,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         const Divider(height: 32),
         Text(
           'TOTAL: ${AppFormatters.formatCurrency(context.watch<SaleProvider>().total)}',
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+          style: const TextStyle(
+              fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         const SizedBox(height: 16),
       ],
@@ -224,7 +235,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           onChanged: (v) => context.read<SaleProvider>().setPaymentType(v!),
         ),
         RadioListTile(
-          title: const Text('Fiado / Pendente', style: TextStyle(color: Colors.white)),
+          title: const Text('Fiado / Pendente',
+              style: TextStyle(color: Colors.white)),
           value: 'fiado',
           groupValue: type,
           activeColor: AppColors.primary,
@@ -245,7 +257,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     final saleProvider = context.read<SaleProvider>();
     int parcelasCount = 1;
 
-    if (saleProvider.paymentType == 'fiado' || saleProvider.paymentType == 'parcelado') {
+    if (saleProvider.paymentType == 'fiado' ||
+        saleProvider.paymentType == 'parcelado') {
       final selectedDate = await showDatePicker(
         context: context,
         initialDate: DateTime.now().add(const Duration(days: 30)),
@@ -287,7 +300,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       for (int i = 1; i <= parcelasCount; i++) {
         // NOVO: Adiciona meses exatos em vez de 30 dias para manter o mesmo dia do mês.
         // O Flutter entende que, se foi dia 5, o próximo mês (selectedDate.month + i - 1) também cai no dia 5.
-        DateTime dataVenc = DateTime(selectedDate.year, selectedDate.month + (i - 1), selectedDate.day);
+        DateTime dataVenc = DateTime(
+            selectedDate.year, selectedDate.month + (i - 1), selectedDate.day);
 
         parcelas.add(ParcelaModel(
           vendaId: '',
@@ -305,6 +319,13 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   }
 
   void _executeSale(SaleProvider provider, List<ParcelaModel>? parcelas) async {
+    // 1. SALVA OS DADOS ANTES DE FINALIZAR
+    final customer = provider.selectedCustomer;
+    final cartItems = List.from(provider.cart);
+    final totalVenda = provider.total;
+    final tipoPagamento = provider.paymentType;
+    final String telefoneCliente = (customer as dynamic)?.celular ?? '';
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -312,25 +333,151 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     );
 
     try {
+      // 2. SALVA NO BANCO
       await provider.finalizeSale(parcelas);
 
-      if (mounted) {
-        Navigator.pop(context);
-        setState(() => _currentStep = 0);
+      // 3. MONTA A MENSAGEM
+      String mensagem = 'Olá, *${customer?.nome ?? 'Cliente'}*! 👋\n\n';
+      mensagem += '✅ *Sua compra foi registrada com sucesso!*\n\n';
+      mensagem += '🛒 *Resumo da Compra:*\n';
 
+      for (var item in cartItems) {
+        mensagem +=
+            '▪ ${item.quantidade}x ${item.produtoNome} - ${AppFormatters.formatCurrency(item.precoUnitario)}\n';
+      }
+
+      mensagem += '\n💰 *Total:* ${AppFormatters.formatCurrency(totalVenda)}\n';
+
+      // Lógica atualizada para formatar Parcelado e Fiado com Vencimento
+      String formaPagamentoStr = '';
+      String vencimentoStr = '';
+
+      if (tipoPagamento == 'a_vista') {
+        formaPagamentoStr = 'À Vista';
+      } else if (tipoPagamento == 'fiado') {
+        formaPagamentoStr = 'Fiado / Pendente';
+        if (parcelas != null && parcelas.isNotEmpty) {
+          vencimentoStr =
+              '🗓️ *Vencimento:* ${AppFormatters.formatDate(parcelas.first.dataVencimento)}\n';
+        }
+      } else if (tipoPagamento == 'parcelado') {
+        if (parcelas != null && parcelas.isNotEmpty) {
+          formaPagamentoStr =
+              'Parcelado (${parcelas.length}x de ${AppFormatters.formatCurrency(parcelas.first.valor)})';
+          vencimentoStr =
+              '🗓️ *1º Vencimento:* ${AppFormatters.formatDate(parcelas.first.dataVencimento)}\n';
+        } else {
+          formaPagamentoStr = 'Parcelado';
+        }
+      }
+
+      mensagem += '💳 *Pagamento:* $formaPagamentoStr\n';
+      if (vencimentoStr.isNotEmpty) {
+        mensagem += '$vencimentoStr';
+      }
+
+      mensagem += '\nAgradecemos a preferência! Volte sempre. 🤝';
+
+      if (mounted) {
+        Navigator.pop(context); // Fecha o loading
+        setState(() => _currentStep = 0); // Volta pro início do stepper
+
+        // Recarrega os dados da tela
         await context.read<CustomerProvider>().loadCustomers();
         await context.read<StockProvider>().loadProducts();
 
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('✅ Venda realizada com sucesso!'),
+          content: Text('✅ Venda salva no sistema!'),
           backgroundColor: Colors.green,
         ));
+
+        // 4. POP-UP DE ENVIAR RECIBO
+        showDialog(
+            context: context,
+            builder: (ctx) {
+              final phoneController = TextEditingController();
+              final bool temTelefone = telefoneCliente.isNotEmpty;
+
+              return AlertDialog(
+                title: const Text('Venda Finalizada! 🎉'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (temTelefone) ...[
+                      Text(
+                          'Deseja enviar o recibo para o WhatsApp de ${customer?.nome}?'),
+                      const SizedBox(height: 8),
+                      Text(telefoneCliente,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.green)),
+                    ] else ...[
+                      const Text(
+                          'Este cliente não possui celular cadastrado.\nDeseja informar um número agora?'),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: phoneController,
+                        keyboardType: TextInputType.phone,
+                        decoration: const InputDecoration(
+                          labelText: 'WhatsApp do Cliente',
+                          hintText: 'Ex: 21999999999',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.phone),
+                        ),
+                        style: const TextStyle(color: Colors.black),
+                      ),
+                    ],
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Não Enviar',
+                        style: TextStyle(color: Colors.grey)),
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+
+                      String numeroParaEnviar =
+                          temTelefone ? telefoneCliente : phoneController.text;
+
+                      if (numeroParaEnviar.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Nenhum número informado.'),
+                                backgroundColor: Colors.orange));
+                        return;
+                      }
+
+                      try {
+                        await WhatsAppHelper.sendMessage(
+                            numeroParaEnviar, mensagem);
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content:
+                              Text('Não foi possível abrir o WhatsApp: $e'),
+                          backgroundColor: Colors.red,
+                        ));
+                      }
+                    },
+                    style:
+                        ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    child: const Text('Enviar Recibo',
+                        style: TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              );
+            });
       }
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erro ao salvar: $e'),
+          content: Text('Erro ao salvar venda: $e'),
           backgroundColor: Colors.red,
         ));
       }

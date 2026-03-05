@@ -61,9 +61,9 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
     });
   }
 
-  void _showQuitarDialog(Map<String, dynamic> item, String nomeCliente, String nomeProduto, double valor, DateTime? dueDate) {
+  void _showQuitarDialog(Map<String, dynamic> item, String nomeCliente, String nomeProduto, double valor, DateTime? dueDate, String telefoneCliente) {
     final String vendaId = item['venda_id'] ?? '';
-    final String parcelaId = item['id']; // Pega o ID da parcela específica
+    final String parcelaId = item['id'];
 
     showDialog(
       context: context,
@@ -80,14 +80,13 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
           ],
         ),
         actions: [
-          // Organizado em coluna para acomodar as 3 opções sem quebrar o layout
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               OutlinedButton(
                 onPressed: () {
-                  Navigator.pop(context); // Fecha o dialog atual
-                  _showPartialPaymentDialog(parcelaId, valor); // Abre o dialog de pagamento parcial
+                  Navigator.pop(context); 
+                  _showPartialPaymentDialog(parcelaId, valor, telefoneCliente); 
                 },
                 style: OutlinedButton.styleFrom(backgroundColor: Colors.blue),
                 child: const Text('PAGAMENTO PARCIAL', style: TextStyle(color: Colors.white),),
@@ -96,7 +95,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
               ElevatedButton(
                 onPressed: () async {
                   Navigator.pop(context); 
-                  await _processarQuitacao(parcelaId, false); 
+                  await _processarQuitacao(parcelaId, false, valorPago: valor, telefone: telefoneCliente); 
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
                 child: const Text('QUITAR ESTA PARCELA', style: TextStyle(color: Colors.white)),
@@ -105,7 +104,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
               ElevatedButton(
                 onPressed: () async {
                   Navigator.pop(context); 
-                  await _processarQuitacao(vendaId, true);
+                  await _processarQuitacao(vendaId, true, valorPago: valor, telefone: telefoneCliente);
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                 child: const Text('QUITAR TODA A COMPRA', style: TextStyle(color: Colors.white)),
@@ -117,8 +116,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
     );
   }
 
-  // NOVO: Dialog para receber o valor do pagamento parcial
-  void _showPartialPaymentDialog(String parcelaId, double valorTotal) {
+  void _showPartialPaymentDialog(String parcelaId, double valorTotal, String telefoneCliente) {
     final controller = TextEditingController();
 
     showDialog(
@@ -139,7 +137,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
                 hintText: 'Ex: 50.00',
                 border: OutlineInputBorder(),
               ),
-              style: const TextStyle(color: Colors.black), // Garante contraste no input
+              style: const TextStyle(color: Colors.black),
             ),
           ],
         ),
@@ -150,7 +148,6 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              // Troca vírgula por ponto para evitar erro de parse
               final input = controller.text.replaceAll(',', '.');
               final valorPago = double.tryParse(input);
 
@@ -162,13 +159,11 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
               }
 
               if (valorPago >= valorTotal) {
-                // Se o cliente pagou tudo ou a mais, quita a parcela inteira
                 Navigator.pop(context);
-                await _processarQuitacao(parcelaId, false);
+                await _processarQuitacao(parcelaId, false, valorPago: valorTotal, telefone: telefoneCliente);
               } else {
-                // Se pagou menos, processa o abatimento
                 Navigator.pop(context);
-                await _processarPagamentoParcial(parcelaId, valorTotal, valorPago);
+                await _processarPagamentoParcial(parcelaId, valorTotal, valorPago, telefoneCliente);
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
@@ -179,8 +174,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
     );
   }
 
-  // NOVO: Processa a lógica de abater o valor no banco de dados
-  Future<void> _processarPagamentoParcial(String parcelaId, double valorTotal, double valorPago) async {
+  Future<void> _processarPagamentoParcial(String parcelaId, double valorTotal, double valorPago, String telefoneCliente) async {
     showDialog(
       context: context, 
       barrierDismissible: false,
@@ -196,7 +190,9 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('✅ Pagamento parcial registrado!'), backgroundColor: Colors.blue),
         );
-        _load(); // Recarrega a tela para atualizar o valor no card
+        _load(); 
+        
+        _perguntarEnviarReciboWhatsApp(valorPago, telefoneCliente, restante: restante);
       }
     } catch (e) {
       if (mounted) {
@@ -208,7 +204,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
     }
   }
 
-  Future<void> _processarQuitacao(String id, bool quitarTudo) async {
+  Future<void> _processarQuitacao(String id, bool quitarTudo, {double? valorPago, required String telefone}) async {
     showDialog(
       context: context, 
       barrierDismissible: false,
@@ -228,6 +224,8 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
           const SnackBar(content: Text('✅ Pagamento registrado com sucesso!'), backgroundColor: Colors.green),
         );
         _load(); 
+        
+        _perguntarEnviarReciboWhatsApp(valorPago ?? 0, telefone);
       }
     } catch (e) {
       if (mounted) {
@@ -237,6 +235,47 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
         );
       }
     }
+  }
+
+  void _perguntarEnviarReciboWhatsApp(double valorPago, String telefone, {double? restante}) {
+    if (telefone.isEmpty) return; // Se não tiver telefone, não exibe o modal
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Enviar Recibo?'),
+        content: const Text('Deseja enviar a confirmação de pagamento para o WhatsApp do cliente?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Não', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              
+              String msg = 'Olá! Confirmamos o recebimento do seu pagamento no valor de *${AppFormatters.formatCurrency(valorPago)}*.\n\n';
+              if (restante != null && restante > 0) {
+                msg += 'Ainda resta um saldo pendente de *${AppFormatters.formatCurrency(restante)}* nesta parcela.\n\n';
+              } else {
+                msg += 'Esta parcela/conta foi totalmente quitada! 🎉\n\n';
+              }
+              msg += 'Obrigado!';
+              
+              // Aqui enviamos a mensagem de fato! O erro azul do VS Code vai sumir agora.
+              try {
+                await WhatsAppHelper.sendMessage(telefone, msg);
+              } catch (e) {
+                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                   content: Text('Não foi possível abrir o WhatsApp.'), backgroundColor: Colors.orange));
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text('Sim, enviar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -314,6 +353,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
 
                           // Lógica de parsing para extrair nome do cliente e dos produtos
                           String cliente = '';
+                          String telefoneCliente = '';
                           String produtosDesc = '';
                           
                           final vendas = item['vendas'];
@@ -321,6 +361,9 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
                             final nestedCliente = vendas['clientes'];
                             if (nestedCliente is Map<String, dynamic>) {
                               cliente = nestedCliente['nome']?.toString() ?? '';
+                              telefoneCliente = nestedCliente['celular']?.toString() ?? '';
+                              
+                              print('Cliente: $cliente | Telefone encontrado: $telefoneCliente');
                             }
                             
                             // Acessa a lista de itens da venda para extrair os produtos
@@ -407,7 +450,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
                                   ),
                                   const SizedBox(height: 4),
                                   InkWell(
-                                    onTap: () => _showQuitarDialog(item, cliente, produtosDesc, valor, dueDate),
+                                    onTap: () => _showQuitarDialog(item, cliente, produtosDesc, valor, dueDate, telefoneCliente),
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                                       decoration: BoxDecoration(
