@@ -81,8 +81,10 @@ class _RegisterEntryScreenState extends State<RegisterEntryScreen> {
                   setState(() {
                     _selectedProduct = value;
                     if (value != null) {
-                      _costController.text = value.precoCusto.toString();
-                      _salePriceController.text = value.valorVenda.toString();
+                      // Formata para 2 casas decimais e troca ponto por vírgula
+                      _costController.text = value.precoCusto.toStringAsFixed(2).replaceAll('.', ',');
+                      _salePriceController.text = value.valorVenda.toStringAsFixed(2).replaceAll('.', ',');
+                      
                       _complementController.text = value.complemento.toString();
                       _selectedFornecedor = value.fornecedor.isNotEmpty
                           ? value.fornecedor
