@@ -1,2 +1,0 @@
-faça as seguintes alterações no aplicativo:
-- adicionar botão de enviar boleto pelo whatsapp;
