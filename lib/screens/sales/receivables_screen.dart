@@ -67,6 +67,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
 
     showDialog(
       context: context,
+      barrierDismissible: false, // <-- ADICIONE AQUI
       builder: (context) => AlertDialog(
         title: const Text('Opções de Pagamento'),
         content: Column(
@@ -108,6 +109,12 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                 child: const Text('QUITAR TODA A COMPRA', style: TextStyle(color: Colors.white)),
+              ),
+              const SizedBox(height: 8),
+              // NOVO BOTÃO PARA FECHAR O POP-UP EM SEGURANÇA
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
               ),
             ],
           )

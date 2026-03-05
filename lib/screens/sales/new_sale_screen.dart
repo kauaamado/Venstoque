@@ -272,6 +272,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       if (saleProvider.paymentType == 'parcelado') {
         final result = await showDialog<int>(
           context: context,
+          barrierDismissible: false, // 1. Trava o clique fora do pop-up
           builder: (context) {
             int count = 1;
             return AlertDialog(
@@ -283,15 +284,25 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                 style: const TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
               ),
               actions: [
+                // 2. Adicionado o botão de Cancelar para o seu pai poder desistir
                 TextButton(
+                  onPressed: () => Navigator.pop(context, null),
+                  child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
                   onPressed: () => Navigator.pop(context, count),
-                  child: const Text('OK'),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                  child: const Text('OK', style: TextStyle(color: Colors.white)),
                 ),
               ],
             );
           },
         );
-        if (result != null) parcelasCount = result;
+
+        // 3. Se ele clicou em Cancelar (result é null), aborta a venda na hora!
+        if (result == null) return; 
+        
+        parcelasCount = result;
       }
 
       List<ParcelaModel> parcelas = [];
