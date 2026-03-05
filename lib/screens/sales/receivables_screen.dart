@@ -137,7 +137,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
                 hintText: 'Ex: 50.00',
                 border: OutlineInputBorder(),
               ),
-              style: const TextStyle(color: Colors.black),
+              style: const TextStyle(color: Colors.white),
             ),
           ],
         ),

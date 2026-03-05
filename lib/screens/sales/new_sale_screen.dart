@@ -280,7 +280,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                 keyboardType: TextInputType.number,
                 onChanged: (value) => count = int.tryParse(value) ?? 1,
                 decoration: const InputDecoration(hintText: 'Ex: 3'),
-                style: const TextStyle(color: Colors.black),
+                style: const TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
               ),
               actions: [
                 TextButton(
