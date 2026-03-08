@@ -65,9 +65,17 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
     final String vendaId = item['venda_id'] ?? '';
     final String parcelaId = item['id'];
 
+    // NOVO: Calcula o valor TOTAL pendente somando todas as parcelas dessa mesma venda
+    double valorTotalPendente = 0;
+    for (var p in _data) {
+      if (p['venda_id'] == vendaId) {
+        valorTotalPendente += (p['valor'] as num?)?.toDouble() ?? 0.0;
+      }
+    }
+
     showDialog(
       context: context,
-      barrierDismissible: false, // <-- ADICIONE AQUI
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('Opções de Pagamento'),
         content: Column(
@@ -78,6 +86,15 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
             Text('Produto: $nomeProduto', style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Text('Valor desta parcela: ${AppFormatters.formatCurrency(valor)}'),
+            
+            // NOVO: Mostra o total pendente se houver mais de uma parcela
+            if (valorTotalPendente > valor) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Total pendente da compra: ${AppFormatters.formatCurrency(valorTotalPendente)}',
+                style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ]
           ],
         ),
         actions: [
@@ -96,6 +113,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
               ElevatedButton(
                 onPressed: () async {
                   Navigator.pop(context); 
+                  // Aqui continua passando o valor de apenas UMA parcela
                   await _processarQuitacao(parcelaId, false, valorPago: valor, telefone: telefoneCliente); 
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
@@ -105,16 +123,16 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
               ElevatedButton(
                 onPressed: () async {
                   Navigator.pop(context); 
-                  await _processarQuitacao(vendaId, true, valorPago: valor, telefone: telefoneCliente);
+                  // MUDANÇA AQUI: Agora passa o valor TOTAL PENDENTE para o WhatsApp
+                  await _processarQuitacao(vendaId, true, valorPago: valorTotalPendente, telefone: telefoneCliente);
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                 child: const Text('QUITAR TODA A COMPRA', style: TextStyle(color: Colors.white)),
               ),
               const SizedBox(height: 8),
-              // NOVO BOTÃO PARA FECHAR O POP-UP EM SEGURANÇA
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+                child: const Text('CANCELAR / VOLTAR', style: TextStyle(color: Colors.grey)),
               ),
             ],
           )
