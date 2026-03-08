@@ -7,6 +7,15 @@ import 'supabase_service.dart';
 class SaleService {
   final _client = SupabaseService().client;
 
+  Future<List<Map<String, dynamic>>> getSalesHistory() async {
+    final res = await _client
+        .from(AppTables.vendas)
+        .select('*, clientes(nome), itens_venda(quantidade, custo_unitario, preco_unitario, produtos(modelo)), parcelas(*)')
+        .order('data_venda', ascending: false);
+    
+    return List<Map<String, dynamic>>.from(res);
+  }
+
   Future<void> processSale({
     required VendaModel venda,
     required List<ItemVendaModel> itens,

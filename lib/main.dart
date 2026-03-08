@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'providers/customer_provider.dart';
 import 'providers/stock_provider.dart';
@@ -16,6 +17,7 @@ import 'utils/constants.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('pt_BR', null);
 
   // INFORME SUAS CREDENCIAIS DO SUPABASE AQUI
   await Supabase.initialize(
@@ -24,7 +26,6 @@ Future<void> main() async {
   );
 
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitDown]);
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   runApp(const VenstoqueApp());

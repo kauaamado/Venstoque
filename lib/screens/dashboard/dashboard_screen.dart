@@ -4,6 +4,7 @@ import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/summary_card.dart';
 import '../../services/supabase_service.dart';
+import '../sales/sale_history_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -207,6 +208,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+              
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const SalesHistoryScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.history, color: AppColors.primary),
+                  label: const Text('VER HISTÓRICO DE VENDAS', style: TextStyle(color: Colors.white)),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.primary),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
