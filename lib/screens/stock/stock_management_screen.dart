@@ -6,6 +6,8 @@ import '../../utils/formatters.dart';
 import '../../models/produto_model.dart';
 import 'register_entry_screen.dart';
 import 'register_product_screen.dart';
+import '../../widgets/custom_search_bar.dart';
+import '../../utils/search_helper.dart'; // Corrigido para search_helper.dart
 
 class StockManagementScreen extends StatefulWidget {
   const StockManagementScreen({super.key});
@@ -17,14 +19,13 @@ class StockManagementScreen extends StatefulWidget {
 class _StockManagementScreenState extends State<StockManagementScreen> {
   String? _selectedFilter;
   String? _selectedType = 'Todos';
+  String _searchQuery = ''; // Nossa variável da barra de pesquisa
 
   final List<String> _filterOptions = [
     'Preço de Custo (Crescente)',
     'Preço de Custo (Decrescente)',
     'Preço de Venda (Crescente)',
     'Preço de Venda (Decrescente)',
-    'Lucro (Crescente)',
-    'Lucro (Decrescente)',
     'Quantidade (Crescente)',
     'Quantidade (Decrescente)',
   ];
@@ -41,18 +42,45 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
   Widget build(BuildContext context) {
     final products = context.watch<StockProvider>().products;
 
-/*
-    if (products.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-*/
-    List<ProdutoModel> filteredProducts = products;
+    // ==========================================
+    // 1. APLICA A BARRA DE PESQUISA (SearchHelper)
+    // ==========================================
+    List<ProdutoModel> processedProducts = SearchHelper.filterList(
+      items: products,
+      query: _searchQuery,
+      // Busca pelo nome do modelo (se quiser buscar por tipo também, mude para: (p) => '${p.modelo} ${p.tipo}')
+      searchBy: (p) => p.modelo, 
+    );
 
+    // ==========================================
+    // 2. APLICA O FILTRO DE TIPO (Dropdown)
+    // ==========================================
     if (_selectedType != null && _selectedType != 'Todos') {
-      filteredProducts =
-          products.where((p) => p.tipo == _selectedType).toList();
+      processedProducts = processedProducts.where((p) => p.tipo == _selectedType).toList();
+    }
+
+    // ==========================================
+    // 3. APLICA A ORDENAÇÃO (Dropdown de Filtros)
+    // ==========================================
+    if (_selectedFilter != null) {
+      processedProducts.sort((a, b) {
+        switch (_selectedFilter) {
+          case 'Preço de Custo (Crescente)':
+            return a.precoCusto.compareTo(b.precoCusto);
+          case 'Preço de Custo (Decrescente)':
+            return b.precoCusto.compareTo(a.precoCusto);
+          case 'Preço de Venda (Crescente)':
+            return a.valorVenda.compareTo(b.valorVenda);
+          case 'Preço de Venda (Decrescente)':
+            return b.valorVenda.compareTo(a.valorVenda);
+          case 'Quantidade (Crescente)':
+            return a.quantidadeEstoque.compareTo(b.quantidadeEstoque);
+          case 'Quantidade (Decrescente)':
+            return b.quantidadeEstoque.compareTo(a.quantidadeEstoque);
+          default:
+            return 0;
+        }
+      });
     }
 
     return Scaffold(
@@ -68,6 +96,19 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ==========================================
+                // BARRA DE PESQUISA NA TELA
+                // ==========================================
+                CustomSearchBar(
+                  hintText: 'Buscar Produto pelo nome...',
+                  onChanged: (texto) {
+                    setState(() {
+                      _searchQuery = texto;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                
                 const Text(
                   'Filtrar Produtos',
                   style: TextStyle(
@@ -102,7 +143,7 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
                           });
                         },
                         isExpanded: true,
-                        hint: const Text('Selecione um filtro'),
+                        hint: const Text('Ordenar por'),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -142,7 +183,7 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
                           });
                         },
                         isExpanded: true,
-                        hint: const Text('Selecione um tipo'),
+                        hint: const Text('Tipo'),
                       ),
                     ),
                   ],
@@ -151,51 +192,59 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
             ),
           ),
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: filteredProducts.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final prod = filteredProducts[index];
-                return Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.grey.shade200),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(12),
-                    title: Text(prod.modelo,
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(
-                        '${prod.tipo} - ${prod.complemento}\nCusto: ${AppFormatters.formatCurrency(prod.precoCusto)}'),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Qtd: ${prod.quantidadeEstoque}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: prod.quantidadeEstoque <= 0
-                                ? AppColors.error
-                                : (prod.isLowStock
-                                    ? AppColors.warning
-                                    : AppColors.textPrimary),
+            child: processedProducts.isEmpty
+                ? const Center(
+                    child: Text(
+                      'Nenhum produto encontrado.',
+                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: processedProducts.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final prod = processedProducts[index];
+                      return Card(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: Colors.grey.shade700),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(12),
+                          title: Text(prod.modelo,
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                          subtitle: Text(
+                              '${prod.tipo} - ${prod.complemento}\nCusto: ${AppFormatters.formatCurrency(prod.precoCusto)}',
+                              style: TextStyle(color: Colors.grey.shade400)),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Qtd: ${prod.quantidadeEstoque}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: prod.quantidadeEstoque <= 0
+                                      ? Colors.red
+                                      : (prod.isLowStock
+                                          ? Colors.orange
+                                          : Colors.green),
+                                ),
+                              ),
+                              Text(
+                                AppFormatters.formatCurrency(prod.valorVenda),
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ],
                           ),
                         ),
-                        Text(
-                          AppFormatters.formatCurrency(prod.valorVenda),
-                          style: const TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),
@@ -214,7 +263,7 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
               );
             },
             backgroundColor: AppColors.primary,
-            icon: const Icon(Icons.add_box),
+            icon: const Icon(Icons.add_box, color: Colors.white),
             label: const Text('Novo Produto',
                 style: TextStyle(color: Colors.white)),
           ),
@@ -230,7 +279,7 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
               );
             },
             backgroundColor: AppColors.primary,
-            icon: const Icon(Icons.add_shopping_cart),
+            icon: const Icon(Icons.add_shopping_cart, color: Colors.white),
             label: const Text('Nova Entrada',
                 style: TextStyle(color: Colors.white)),
           ),

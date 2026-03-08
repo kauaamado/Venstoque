@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../services/sale_service.dart';
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
+import '../../widgets/custom_search_bar.dart'; // NOVO IMPORT
+import '../../utils/search_helper.dart'; // NOVO IMPORT
 
 class ReceivablesScreen extends StatefulWidget {
   const ReceivablesScreen({super.key});
@@ -15,6 +17,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
   List<Map<String, dynamic>> _data = [];
   bool _loading = true;
   String? _selectedFilter;
+  String _searchQuery = ''; // NOVO: Variável de busca
 
   final List<String> _filterOptions = [
     'Valor Pendente (Crescente)',
@@ -65,7 +68,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
     final String vendaId = item['venda_id'] ?? '';
     final String parcelaId = item['id'];
 
-    // NOVO: Calcula o valor TOTAL pendente somando todas as parcelas dessa mesma venda
+    // Calcula o valor TOTAL pendente somando todas as parcelas dessa mesma venda
     double valorTotalPendente = 0;
     for (var p in _data) {
       if (p['venda_id'] == vendaId) {
@@ -75,7 +78,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
 
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: false, 
       builder: (context) => AlertDialog(
         title: const Text('Opções de Pagamento'),
         content: Column(
@@ -87,7 +90,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
             const SizedBox(height: 8),
             Text('Valor desta parcela: ${AppFormatters.formatCurrency(valor)}'),
             
-            // NOVO: Mostra o total pendente se houver mais de uma parcela
+            // Mostra o total pendente se houver mais de uma parcela
             if (valorTotalPendente > valor) ...[
               const SizedBox(height: 8),
               Text(
@@ -113,7 +116,6 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
               ElevatedButton(
                 onPressed: () async {
                   Navigator.pop(context); 
-                  // Aqui continua passando o valor de apenas UMA parcela
                   await _processarQuitacao(parcelaId, false, valorPago: valor, telefone: telefoneCliente); 
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
@@ -123,7 +125,6 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
               ElevatedButton(
                 onPressed: () async {
                   Navigator.pop(context); 
-                  // MUDANÇA AQUI: Agora passa o valor TOTAL PENDENTE para o WhatsApp
                   await _processarQuitacao(vendaId, true, valorPago: valorTotalPendente, telefone: telefoneCliente);
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
@@ -146,6 +147,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('Pagamento Parcial'),
         content: Column(
@@ -263,10 +265,11 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
   }
 
   void _perguntarEnviarReciboWhatsApp(double valorPago, String telefone, {double? restante}) {
-    if (telefone.isEmpty) return; // Se não tiver telefone, não exibe o modal
+    if (telefone.isEmpty) return;
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         title: const Text('Enviar Recibo?'),
         content: const Text('Deseja enviar a confirmação de pagamento para o WhatsApp do cliente?'),
@@ -287,7 +290,6 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
               }
               msg += 'Obrigado!';
               
-              // Aqui enviamos a mensagem de fato! O erro azul do VS Code vai sumir agora.
               try {
                 await WhatsAppHelper.sendMessage(telefone, msg);
               } catch (e) {
@@ -305,6 +307,24 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ==========================================
+    // 1. APLICA A BARRA DE PESQUISA (SearchHelper)
+    // ==========================================
+    final filteredList = SearchHelper.filterList(
+      items: _data,
+      query: _searchQuery,
+      searchBy: (item) {
+        final vendas = item['vendas'];
+        if (vendas is Map<String, dynamic>) {
+          final nestedCliente = vendas['clientes'];
+          if (nestedCliente is Map<String, dynamic>) {
+            return nestedCliente['nome']?.toString() ?? '';
+          }
+        }
+        return '';
+      },
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Contas a Receber'),
@@ -318,6 +338,19 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ==========================================
+                // BARRA DE PESQUISA NA TELA
+                // ==========================================
+                CustomSearchBar(
+                  hintText: 'Buscar Conta pelo nome do cliente...',
+                  onChanged: (texto) {
+                    setState(() {
+                      _searchQuery = texto;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+
                 const Text(
                   'Filtrar Contas',
                   style: TextStyle(
@@ -360,7 +393,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : _data.isEmpty
+                : filteredList.isEmpty
                     ? const Center(
                         child: Text(
                           'Nenhuma conta a receber.',
@@ -371,10 +404,10 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
                       )
                     : ListView.separated(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _data.length,
+                        itemCount: filteredList.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (context, index) {
-                          final item = _data[index];
+                          final item = filteredList[index];
 
                           // Lógica de parsing para extrair nome do cliente e dos produtos
                           String cliente = '';
@@ -387,11 +420,8 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
                             if (nestedCliente is Map<String, dynamic>) {
                               cliente = nestedCliente['nome']?.toString() ?? '';
                               telefoneCliente = nestedCliente['celular']?.toString() ?? '';
-                              
-                              print('Cliente: $cliente | Telefone encontrado: $telefoneCliente');
                             }
                             
-                            // Acessa a lista de itens da venda para extrair os produtos
                             final itensVenda = vendas['itens_venda'];
                             if (itensVenda is List) {
                               List<String> nomesProdutos = [];
@@ -416,7 +446,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
                           }
                           
                           final valor = (item['valor'] as num?)?.toDouble() ?? 0.0;
-                          final parcelaAtual = item['numero_parcela']?.toString() ?? '1'; // Para mostrar de qual parcela se trata
+                          final parcelaAtual = item['numero_parcela']?.toString() ?? '1';
 
                           return Container(
                             decoration: BoxDecoration(
@@ -433,7 +463,7 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
                                     style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                                   ),
                                   Text(
-                                    'P: $parcelaAtual', // Exibe o número da parcela no canto superior
+                                    'P: $parcelaAtual',
                                     style: TextStyle(fontSize: 12, color: Colors.grey.shade400, fontWeight: FontWeight.bold),
                                   ),
                                 ],
@@ -443,7 +473,6 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Exibe o Produto!
                                     Text(
                                       produtosDesc,
                                       style: TextStyle(color: Colors.grey.shade300, fontSize: 13),

@@ -6,6 +6,8 @@ import '../../models/cliente_model.dart';
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
 import 'customer_profile_screen.dart';
+import '../../widgets/custom_search_bar.dart'; // NOVO IMPORT
+import '../../utils/search_helper.dart'; // NOVO IMPORT (verifique a ortografia)
 
 class CustomerListScreen extends StatefulWidget {
   const CustomerListScreen({super.key});
@@ -16,6 +18,7 @@ class CustomerListScreen extends StatefulWidget {
 
 class _CustomerListScreenState extends State<CustomerListScreen> {
   String? _selectedFilter;
+  String _searchQuery = ''; // NOVO: Variável da busca
 
   final List<String> _filterOptions = const [
     'Maiores Devedores',
@@ -37,8 +40,12 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     final provider = context.watch<CustomerProvider>();
     final customers = provider.customers;
 
-    // Cria uma cópia para aplicar ordenação sem alterar a lista original
-    final List<ClienteModel> orderedCustomers = List.from(customers);
+    // 1. APLICA A BARRA DE PESQUISA (Filtra a lista original)
+    List<ClienteModel> filteredCustomers = SearchHelper.filterList(
+      items: customers,
+      query: _searchQuery,
+      searchBy: (c) => c.nome, // Diz pra função buscar pelo Nome do Cliente
+    );
 
     double _totalPendente(ClienteModel c) {
       if (c.id == null) return 0.0;
@@ -52,25 +59,26 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
       return (insights?['totalComprado'] as num?)?.toDouble() ?? 0.0;
     }
 
+    // 2. APLICA A ORDENAÇÃO NO RESULTADO DA PESQUISA
     if (_selectedFilter != null) {
       switch (_selectedFilter) {
         case 'Maiores Devedores':
-          orderedCustomers.sort(
+          filteredCustomers.sort(
             (a, b) => _totalPendente(b).compareTo(_totalPendente(a)),
           );
           break;
         case 'Menores Devedores':
-          orderedCustomers.sort(
+          filteredCustomers.sort(
             (a, b) => _totalPendente(a).compareTo(_totalPendente(b)),
           );
           break;
         case 'Maiores Compradores':
-          orderedCustomers.sort(
+          filteredCustomers.sort(
             (a, b) => _totalComprado(b).compareTo(_totalComprado(a)),
           );
           break;
         case 'Menores Compradores':
-          orderedCustomers.sort(
+          filteredCustomers.sort(
             (a, b) => _totalComprado(a).compareTo(_totalComprado(b)),
           );
           break;
@@ -92,6 +100,17 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // NOVO: BARRA DE PESQUISA NA TELA
+                      CustomSearchBar(
+                        hintText: 'Buscar Cliente pelo nome...',
+                        onChanged: (texto) {
+                          setState(() {
+                            _searchQuery = texto;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      
                       const Text(
                         'Filtrar Clientes',
                         style: TextStyle(
@@ -125,101 +144,105 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                           });
                         },
                         isExpanded: true,
-                        hint: const Text('Selecione um filtro'),
+                        hint: const Text('Ordenar por'),
                       ),
                     ],
                   ),
                 ),
                 Expanded(
-                  child: ListView.builder(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                    itemCount: orderedCustomers.length,
-                    itemBuilder: (context, index) {
-                      final c = orderedCustomers[index];
-                      final totalComprado = _totalComprado(c);
-                      final totalPendente = _totalPendente(c);
+                  child: filteredCustomers.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Nenhum cliente encontrado.',
+                            style: TextStyle(color: Colors.grey, fontSize: 16),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                          itemCount: filteredCustomers.length,
+                          itemBuilder: (context, index) {
+                            final c = filteredCustomers[index];
+                            final totalComprado = _totalComprado(c);
+                            final totalPendente = _totalPendente(c);
 
-                      return Card(
-                        color: AppColors.surface,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.grey.shade800),
-                        ),
-                        child: ListTile(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    CustomerProfileScreen(customer: c),
+                            return Card(
+                              color: AppColors.surface,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(color: Colors.grey.shade800),
+                              ),
+                              child: ListTile(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => CustomerProfileScreen(customer: c),
+                                    ),
+                                  );
+                                },
+                                title: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        c.nome,
+                                        style: const TextStyle(
+                                          color: AppColors.textPrimary,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        c.bairro,
+                                        style: const TextStyle(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 12,
+                                        ),
+                                        textAlign: TextAlign.right,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Total comprado: ${AppFormatters.formatCurrency(totalComprado)}',
+                                      style: const TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Pendente: ${AppFormatters.formatCurrency(totalPendente)}',
+                                      style: const TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit, color: Colors.blue),
+                                      onPressed: () => _showEditDialog(c),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.message, color: Colors.green),
+                                      onPressed: () => _openWhatsApp(c.celular),
+                                    ),
+                                  ],
+                                ),
                               ),
                             );
                           },
-                          title: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  c.nome,
-                                  style: const TextStyle(
-                                    color: AppColors.textPrimary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  c.bairro,
-                                  style: const TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 12,
-                                  ),
-                                  textAlign: TextAlign.right,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 4),
-                              Text(
-                                'Total comprado: ${AppFormatters.formatCurrency(totalComprado)}',
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              Text(
-                                'Pendente: ${AppFormatters.formatCurrency(totalPendente)}',
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () => _showEditDialog(c),
-                              ),
-                              IconButton(
-                                icon:
-                                    const Icon(Icons.message, color: Colors.green),
-                                onPressed: () => _openWhatsApp(c.celular),
-                              ),
-                            ],
-                          ),
                         ),
-                      );
-                    },
-                  ),
                 ),
               ],
             ),
@@ -248,6 +271,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
 
     showDialog(
       context: context,
+      barrierDismissible: false, // NOVO: Trava o modal de adicionar
       builder: (context) => AlertDialog(
         title: const Text('Novo Cliente'),
         titleTextStyle: const TextStyle(
@@ -286,7 +310,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar')),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
             onPressed: () {
               final c = ClienteModel(
@@ -320,6 +344,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
 
     showDialog(
       context: context,
+      barrierDismissible: false, // NOVO: Trava o modal de editar
       builder: (context) => AlertDialog(
         title: const Text('Editar Cliente'),
         content: SingleChildScrollView(
@@ -354,10 +379,13 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar')),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
             onPressed: () {
+              // Atenção: Aqui é recomendável usar um updateCustomer no Provider 
+              // em vez de addCustomer para não duplicar o cliente.
               final c = ClienteModel(
+                id: cliente.id, // Preserva o ID original para atualizar
                 nome: nomeController.text,
                 celular: phoneController.text,
                 referencia: referenciaController.text,
@@ -365,10 +393,13 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                 nomeReferencia: referenciaNomeController.text,
                 telefoneReferencia: referenciaTelefoneController.text,
               );
-              context.read<CustomerProvider>().addCustomer(c);
+              
+              // Verifique se você tem uma função updateCustomer no seu CustomerProvider
+              // Se não tiver, o ideal é criar para ele dar um UPDATE no banco e não um INSERT.
+              context.read<CustomerProvider>().addCustomer(c); 
               Navigator.pop(context);
             },
-            child: const Text('Salvar'),
+            child: const Text('Salvar Alterações'),
           ),
         ],
       ),
