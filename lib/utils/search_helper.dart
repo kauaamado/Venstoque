@@ -1,20 +1,20 @@
 class SearchHelper {
   /// Filtra qualquer tipo de lista [T] baseado em um termo de busca.
-  /// 
-  /// [items]: A lista original que você quer filtrar.
-  /// [query]: O texto que o usuário digitou.
-  /// [searchBy]: Uma função que diz em qual campo o filtro deve olhar.
   static List<T> filterList<T>({
     required List<T> items,
-    required String query,
-    required String Function(T item) searchBy,
+    String? query, // Mudamos para String? para aceitar nulos em segurança
+    required String? Function(T item) searchBy, // Aceita que o nome venha nulo do banco
   }) {
-    if (query.trim().isEmpty) return items; // Se não tem busca, devolve tudo
+    // Se a query for nula ou vazia, não precisa filtrar nada
+    if (query == null || query.trim().isEmpty) return items; 
     
     final lowerQuery = query.toLowerCase();
     
     return items.where((item) {
-      final textToSearch = searchBy(item).toLowerCase();
+      final value = searchBy(item);
+      if (value == null) return false; // Se o produto/cliente estiver sem nome no banco, ignora
+      
+      final textToSearch = value.toLowerCase();
       return textToSearch.contains(lowerQuery);
     }).toList();
   }

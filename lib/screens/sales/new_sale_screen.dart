@@ -4,8 +4,11 @@ import '../../providers/customer_provider.dart';
 import '../../providers/stock_provider.dart';
 import '../../providers/sale_provider.dart';
 import '../../models/parcela_model.dart';
+import '../../models/cliente_model.dart';
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
+import '../../widgets/custom_search_bar.dart';
+import '../../utils/search_helper.dart';
 
 class NewSaleScreen extends StatefulWidget {
   const NewSaleScreen({super.key});
@@ -16,6 +19,7 @@ class NewSaleScreen extends StatefulWidget {
 
 class _NewSaleScreenState extends State<NewSaleScreen> {
   int _currentStep = 0;
+  String _searchCustomerQuery = ''; // NOVO: Variável da busca de cliente
 
   @override
   void initState() {
@@ -74,6 +78,13 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     final customers = context.watch<CustomerProvider>().customers;
     final selected = context.watch<SaleProvider>().selectedCustomer;
 
+    // NOVO: Aplica o filtro na lista de clientes
+    final List<ClienteModel> filteredCustomers = SearchHelper.filterList(
+      items: customers,
+      query: _searchCustomerQuery,
+      searchBy: (c) => c.nome,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -88,38 +99,48 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               ),
               SizedBox(height: 4),
               Text(
-                'Toque no cliente para selecionar',
+                'Busque e toque no cliente para selecionar',
                 style: TextStyle(fontSize: 14, color: Colors.grey),
               ),
             ],
           ),
         ),
+        
+        // Barra de pesquisa na tela
+        CustomSearchBar(
+          hintText: 'Buscar cliente pelo nome...',
+          onChanged: (val) {
+            setState(() {
+              _searchCustomerQuery = val;
+            });
+          },
+        ),
+        const SizedBox(height: 16),
+
         if (customers.isEmpty) ...[
-          const SizedBox(height: 16),
-          const Text(
-              'Nenhum cliente cadastrado. Cadastre um cliente para prosseguir.'),
+          const Text('Nenhum cliente cadastrado. Cadastre um cliente para prosseguir.'),
+        ] else if (filteredCustomers.isEmpty) ...[
+          const Text('Nenhum cliente encontrado com esse nome.', style: TextStyle(color: Colors.grey)),
         ] else ...[
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: customers.length,
+            itemCount: filteredCustomers.length, // Usa a lista filtrada
             itemBuilder: (context, index) {
-              final c = customers[index];
+              final c = filteredCustomers[index]; // Usa a lista filtrada
               final isSelected = selected?.id == c.id;
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color:
-                        isSelected ? AppColors.primary : Colors.grey.shade600,
+                    color: isSelected ? AppColors.primary : Colors.grey.shade600,
                     width: isSelected ? 2 : 1,
                   ),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   title: Text(
                     c.nome,
                     style: const TextStyle(
@@ -132,8 +153,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                     padding: const EdgeInsets.only(top: 4.0),
                     child: Text(
                       c.bairro,
-                      style:
-                          TextStyle(fontSize: 14, color: Colors.grey.shade400),
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
                     ),
                   ),
                   trailing: isSelected
@@ -272,7 +292,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       if (saleProvider.paymentType == 'parcelado') {
         final result = await showDialog<int>(
           context: context,
-          barrierDismissible: false, // 1. Trava o clique fora do pop-up
+          barrierDismissible: false, 
           builder: (context) {
             int count = 1;
             return AlertDialog(
@@ -284,7 +304,6 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                 style: const TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
               ),
               actions: [
-                // 2. Adicionado o botão de Cancelar para o seu pai poder desistir
                 TextButton(
                   onPressed: () => Navigator.pop(context, null),
                   child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
@@ -299,7 +318,6 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           },
         );
 
-        // 3. Se ele clicou em Cancelar (result é null), aborta a venda na hora!
         if (result == null) return; 
         
         parcelasCount = result;
@@ -309,8 +327,6 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       double valorDaParcela = saleProvider.total / parcelasCount;
 
       for (int i = 1; i <= parcelasCount; i++) {
-        // NOVO: Adiciona meses exatos em vez de 30 dias para manter o mesmo dia do mês.
-        // O Flutter entende que, se foi dia 5, o próximo mês (selectedDate.month + i - 1) também cai no dia 5.
         DateTime dataVenc = DateTime(
             selectedDate.year, selectedDate.month + (i - 1), selectedDate.day);
 
@@ -330,7 +346,6 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   }
 
   void _executeSale(SaleProvider provider, List<ParcelaModel>? parcelas) async {
-    // 1. SALVA OS DADOS ANTES DE FINALIZAR
     final customer = provider.selectedCustomer;
     final cartItems = List.from(provider.cart);
     final totalVenda = provider.total;
@@ -344,10 +359,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     );
 
     try {
-      // 2. SALVA NO BANCO
       await provider.finalizeSale(parcelas);
 
-      // 3. MONTA A MENSAGEM
       String mensagem = 'Olá, *${customer?.nome ?? 'Cliente'}*! 👋\n\n';
       mensagem += '✅ *Sua compra foi registrada com sucesso!*\n\n';
       mensagem += '🛒 *Resumo da Compra:*\n';
@@ -359,7 +372,6 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
       mensagem += '\n💰 *Total:* ${AppFormatters.formatCurrency(totalVenda)}\n';
 
-      // Lógica atualizada para formatar Parcelado e Fiado com Vencimento
       String formaPagamentoStr = '';
       String vencimentoStr = '';
 
@@ -390,10 +402,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       mensagem += '\nAgradecemos a preferência! Volte sempre. 🤝';
 
       if (mounted) {
-        Navigator.pop(context); // Fecha o loading
-        setState(() => _currentStep = 0); // Volta pro início do stepper
+        Navigator.pop(context); 
+        setState(() => _currentStep = 0); 
 
-        // Recarrega os dados da tela
         await context.read<CustomerProvider>().loadCustomers();
         await context.read<StockProvider>().loadProducts();
 
@@ -402,7 +413,6 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           backgroundColor: Colors.green,
         ));
 
-        // 4. POP-UP DE ENVIAR RECIBO
         showDialog(
             context: context,
             builder: (ctx) {
