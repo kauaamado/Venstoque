@@ -5,6 +5,7 @@ import '../../providers/stock_provider.dart';
 import '../../providers/sale_provider.dart';
 import '../../models/parcela_model.dart';
 import '../../models/cliente_model.dart';
+import '../../models/produto_model.dart'; // NOVO: Precisa importar o modelo do produto
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/custom_search_bar.dart';
@@ -19,7 +20,8 @@ class NewSaleScreen extends StatefulWidget {
 
 class _NewSaleScreenState extends State<NewSaleScreen> {
   int _currentStep = 0;
-  String _searchCustomerQuery = ''; // NOVO: Variável da busca de cliente
+  String _searchCustomerQuery = ''; 
+  String _searchProductQuery = ''; // NOVO: Variável da busca de produto
 
   @override
   void initState() {
@@ -41,8 +43,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         type: StepperType.horizontal,
         currentStep: _currentStep,
         onStepContinue: () {
-          if (_currentStep == 0 && saleProvider.selectedCustomer == null)
-            return;
+          if (_currentStep == 0 && saleProvider.selectedCustomer == null) return;
           if (_currentStep == 1 && saleProvider.cart.isEmpty) return;
           if (_currentStep < 2) {
             setState(() => _currentStep++);
@@ -78,7 +79,6 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     final customers = context.watch<CustomerProvider>().customers;
     final selected = context.watch<SaleProvider>().selectedCustomer;
 
-    // NOVO: Aplica o filtro na lista de clientes
     final List<ClienteModel> filteredCustomers = SearchHelper.filterList(
       items: customers,
       query: _searchCustomerQuery,
@@ -106,7 +106,6 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           ),
         ),
         
-        // Barra de pesquisa na tela
         CustomSearchBar(
           hintText: 'Buscar cliente pelo nome...',
           onChanged: (val) {
@@ -125,9 +124,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: filteredCustomers.length, // Usa a lista filtrada
+            itemCount: filteredCustomers.length, 
             itemBuilder: (context, index) {
-              final c = filteredCustomers[index]; // Usa a lista filtrada
+              final c = filteredCustomers[index]; 
               final isSelected = selected?.id == c.id;
 
               return Container(
@@ -173,70 +172,129 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     final products = context.watch<StockProvider>().products;
     final cart = context.watch<SaleProvider>().cart;
 
+    // NOVO: Aplica o filtro na lista de produtos
+    final List<ProdutoModel> filteredProducts = SearchHelper.filterList(
+      items: products,
+      query: _searchProductQuery,
+      searchBy: (p) => p.modelo,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        DropdownButtonFormField<String>(
-          decoration: const InputDecoration(
-            labelText: 'Adicionar Produto',
-            border: OutlineInputBorder(),
-          ),
-          items: products
-              .map((p) => DropdownMenuItem(value: p.id, child: Text(p.modelo)))
-              .toList(),
-          onChanged: (id) {
-            if (id != null) {
-              final prod = products.firstWhere((p) => p.id == id);
-              context.read<SaleProvider>().addToCart(prod, 1);
-            }
+        const Text(
+          'Adicionar Produto',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        
+        // NOVO: Barra de pesquisa de produtos (Substituiu o Dropdown)
+        CustomSearchBar(
+          hintText: 'Buscar produto...',
+          onChanged: (val) {
+            setState(() {
+              _searchProductQuery = val;
+            });
           },
+        ),
+        const SizedBox(height: 8),
+
+        // NOVO: Lista de resultados da busca de produtos
+        Container(
+          constraints: const BoxConstraints(maxHeight: 220),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade800),
+            borderRadius: BorderRadius.circular(8),
+            color: Colors.black12,
+          ),
+          child: filteredProducts.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text('Nenhum produto encontrado.', style: TextStyle(color: Colors.grey)),
+                )
+              : ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: filteredProducts.length,
+                  separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey.shade800),
+                  itemBuilder: (context, index) {
+                    final prod = filteredProducts[index];
+                    return ListTile(
+                      title: Text(prod.modelo, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      subtitle: Text(
+                        'Estoque: ${prod.quantidadeEstoque}  •  ${AppFormatters.formatCurrency(prod.valorVenda)}',
+                        style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                      ),
+                      trailing: const Icon(Icons.add_shopping_cart, color: Colors.green),
+                      onTap: () {
+                        context.read<SaleProvider>().addToCart(prod, 1);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('${prod.modelo} adicionado ao carrinho!'),
+                            duration: const Duration(seconds: 1),
+                            backgroundColor: Colors.green,
+                          )
+                        );
+                      },
+                    );
+                  },
+                ),
         ),
         const SizedBox(height: 24),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: cart.length,
-          itemBuilder: (context, index) {
-            final item = cart[index];
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade600, width: 1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ListTile(
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                title: Text(
-                  item.produtoNome ?? '',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 4.0),
-                  child: Text(
-                    '${item.quantidade}x ${AppFormatters.formatCurrency(item.precoUnitario)}',
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
-                  ),
-                ),
-                trailing: IconButton(
-                  icon:
-                      const Icon(Icons.delete_outline, color: Colors.redAccent),
-                  onPressed: () =>
-                      context.read<SaleProvider>().removeFromCart(index),
-                ),
-              ),
-            );
-          },
+
+        const Text(
+          'Carrinho de Compras:',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
+        const SizedBox(height: 8),
+        
+        if (cart.isEmpty)
+          const Text('O carrinho está vazio.', style: TextStyle(color: Colors.grey))
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: cart.length,
+            itemBuilder: (context, index) {
+              final item = cart[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade600, width: 1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  title: Text(
+                    item.produtoNome ?? '',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Text(
+                      '${item.quantidade}x ${AppFormatters.formatCurrency(item.precoUnitario)}',
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
+                    ),
+                  ),
+                  trailing: IconButton(
+                    icon:
+                        const Icon(Icons.delete_outline, color: Colors.redAccent),
+                    onPressed: () =>
+                        context.read<SaleProvider>().removeFromCart(index),
+                  ),
+                ),
+              );
+            },
+          ),
         const Divider(height: 32),
         Text(
           'TOTAL: ${AppFormatters.formatCurrency(context.watch<SaleProvider>().total)}',
           style: const TextStyle(
-              fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+              fontSize: 20, fontWeight: FontWeight.bold, color: Colors.greenAccent),
         ),
         const SizedBox(height: 16),
       ],
