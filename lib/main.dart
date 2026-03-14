@@ -14,6 +14,7 @@ import 'screens/sales/new_sale_screen.dart';
 import 'screens/sales/receivables_screen.dart';
 import 'screens/customers/customer_list_screen.dart';
 import 'utils/constants.dart';
+import 'api.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,8 +22,8 @@ Future<void> main() async {
 
   // INFORME SUAS CREDENCIAIS DO SUPABASE AQUI
   await Supabase.initialize(
-    url:'SUA_URL_DO_SUPABASE',
-    anonKey:'SUA_ANON_KEY_DO_SUPABASE',
+    url: apiUrl,
+    anonKey: apiAnonKey
   );
 
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
