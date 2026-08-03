@@ -14,16 +14,17 @@ import 'screens/sales/new_sale_screen.dart';
 import 'screens/sales/receivables_screen.dart';
 import 'screens/customers/customer_list_screen.dart';
 import 'utils/constants.dart';
-import 'api.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('pt_BR', null);
+  await dotenv.load(fileName: ".env");
 
   // INFORME SUAS CREDENCIAIS DO SUPABASE AQUI
   await Supabase.initialize(
-    url: apiUrl,
-    anonKey: apiAnonKey
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);

@@ -99,16 +99,12 @@ Ao trabalhar nesses fluxos:
 
 ## Configuração e segredos
 
-`lib/main.dart` importa `lib/api.dart`. Esse arquivo é local, ignorado pelo Git,
-e deve definir:
-
-```dart
-const apiUrl = '...';
-const apiAnonKey = '...';
-```
+`lib/main.dart` carrega as credenciais do Supabase com `flutter_dotenv`. O
+arquivo `.env` é local, ignorado pelo Git, e deve definir `SUPABASE_URL` e
+`SUPABASE_ANON_KEY`.
 
 - Nunca faça commit de URL, anon key, service-role key ou outras credenciais.
-- Não remova `lib/api.dart` do `.gitignore`.
+- Não remova `.env` do `.gitignore`.
 - Use valores fictícios em exemplos e documentação.
 - A anon key no cliente não substitui políticas RLS adequadas no Supabase.
 

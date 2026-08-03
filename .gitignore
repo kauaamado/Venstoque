@@ -49,5 +49,5 @@ app.*.map.json
 /build/app/outputs/flutter-apk/app-profile.apk
 /build/app/outputs/flutter-apk/app-release.apk
 
-# API files
-lib/api.dart
+# Secrets
+.env
