@@ -51,3 +51,6 @@ app.*.map.json
 
 # Secrets
 .env
+
+# Planejamento local
+/PLAN.md
