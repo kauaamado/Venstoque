@@ -23,23 +23,22 @@ class ProdutoModel {
 
   factory ProdutoModel.fromMap(Map<String, dynamic> map) {
     return ProdutoModel(
-      id: map['id'],
-      tipo: map['tipo'],
-      modelo: map['modelo'],
-      complemento: map['complemento'],
-      fornecedor: map['fornecedor'] ?? '',
-      precoCusto: (map['preco_custo'] as num).toDouble(),
-      valorVenda: (map['valor_venda'] as num).toDouble(),
-      quantidadeEstoque: map['quantidade_estoque'] ?? 0,
+      id: map['id']?.toString(),
+      tipo: map['categoria']?.toString() ?? '',
+      modelo: map['nome']?.toString() ?? '',
+      complemento: '',
+      fornecedor: map['fornecedor']?.toString() ?? '',
+      precoCusto: (map['preco_custo'] as num?)?.toDouble() ?? 0,
+      valorVenda: (map['valor_venda'] as num?)?.toDouble() ?? 0,
+      quantidadeEstoque: (map['quantidade_estoque'] as num?)?.toInt() ?? 0,
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       if (id != null) 'id': id,
-      'tipo': tipo,
-      'modelo': modelo,
-      'complemento': complemento,
+      'categoria': tipo,
+      'nome': modelo,
       'fornecedor': fornecedor,
       'preco_custo': precoCusto,
       'valor_venda': valorVenda,

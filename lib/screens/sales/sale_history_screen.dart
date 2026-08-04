@@ -46,7 +46,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
         custoTotalVenda += (item['custo_unitario'] as num).toDouble() * (item['quantidade'] as num);
         
         final qtd = item['quantidade'];
-        final modelo = item['produtos']?['modelo'] ?? 'Produto excluído';
+        final modelo = item['produtos']?['nome'] ?? 'Produto excluído';
         
         // NOVO: Adiciona a data da compra entre parênteses ao lado do modelo
         produtosList.add('${qtd}x $modelo ($dataCompraFormatada)');

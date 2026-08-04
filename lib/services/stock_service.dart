@@ -10,11 +10,12 @@ class StockService {
     final response = await _client
         .from(AppTables.produtos)
         .select()
-        .order('modelo', ascending: true);
+        .order('nome', ascending: true);
     return (response as List).map((p) => ProdutoModel.fromMap(p)).toList();
   }
 
-  Future<void> registerProductEntry(EstoqueModel entry, double newSalePrice) async {
+  Future<void> registerProductEntry(
+      EstoqueModel entry, double newSalePrice) async {
     // 1. Registrar Entrada
     await _client.from(AppTables.estoque).insert(entry.toMap());
 
@@ -24,7 +25,7 @@ class StockService {
         .select('quantidade_estoque')
         .eq('id', entry.produtoId)
         .single();
-    
+
     int currentStock = productRes['quantidade_estoque'] ?? 0;
     int updatedStock = currentStock + entry.quantidade;
 

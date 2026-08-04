@@ -427,8 +427,8 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
                               List<String> nomesProdutos = [];
                               for (var iv in itensVenda) {
                                 final prod = iv['produtos'];
-                                if (prod is Map<String, dynamic> && prod['modelo'] != null) {
-                                  nomesProdutos.add(prod['modelo'].toString());
+                                if (prod is Map<String, dynamic> && prod['nome'] != null) {
+                                  nomesProdutos.add(prod['nome'].toString());
                                 }
                               }
                               produtosDesc = nomesProdutos.join(', ');
