@@ -13,9 +13,9 @@ void main() {
       'quantidade_estoque': 3,
     });
 
-    expect(produto.modelo, 'Produto atual');
-    expect(produto.tipo, 'Categoria atual');
-    expect(produto.complemento, isEmpty);
+    expect(produto.nome, 'Produto atual');
+    expect(produto.categoria, 'Categoria atual');
+    expect(produto.ativo, isTrue);
 
     final map = produto.toMap();
     expect(map['nome'], 'Produto atual');

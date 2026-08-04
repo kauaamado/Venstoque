@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../models/estoque_model.dart';
 import '../../models/produto_model.dart';
 import '../../providers/stock_provider.dart';
@@ -14,28 +15,34 @@ class RegisterEntryScreen extends StatefulWidget {
 
 class _RegisterEntryScreenState extends State<RegisterEntryScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _complementController = TextEditingController();
-  final _qtyController = TextEditingController();
+  final _quantityController = TextEditingController();
   final _costController = TextEditingController();
   final _salePriceController = TextEditingController();
-  final List<String> _fornecedores = [
-    'Papo de Boleiro', 
-    'Rasha', 
-    'Smart Mania', 
-    'Outros'
-  ];
-  String? _selectedFornecedor;
-  String? _selectedType;
 
-  ProdutoModel? _selectedProduct;
+  static const _suppliers = [
+    'Papo de Boleiro',
+    'Rasha',
+    'Smart Mania',
+    'Outros',
+  ];
+
+  String? _selectedSupplier;
+  String? _selectedCategory;
+  String? _selectedProductId;
 
   @override
   Widget build(BuildContext context) {
     final products = context.watch<StockProvider>().products;
-    final productTypes = products.map((p) => p.tipo).toSet().toList()..sort();
-    final filteredProducts = _selectedType == null
+    final categories = products.map((product) => product.categoria).toSet()
+      ..removeWhere((category) => category.isEmpty);
+    final sortedCategories = categories.toList()..sort();
+    final filteredProducts = _selectedCategory == null
         ? <ProdutoModel>[]
-        : products.where((product) => product.tipo == _selectedType).toList();
+        : products
+            .where((product) => product.categoria == _selectedCategory)
+            .toList()
+      ..sort((first, second) => first.nome.compareTo(second.nome));
+    final selectedProduct = _findProduct(filteredProducts, _selectedProductId);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Registrar Entrada')),
@@ -46,107 +53,109 @@ class _RegisterEntryScreenState extends State<RegisterEntryScreen> {
           child: Column(
             children: [
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'Tipo de Produto'),
-                value: productTypes.contains(_selectedType) ? _selectedType : null,
-                items: productTypes
-                    .map((type) => DropdownMenuItem(
-                          value: type,
-                          child: Text(type),
-                        ))
+                initialValue: sortedCategories.contains(_selectedCategory)
+                    ? _selectedCategory
+                    : null,
+                decoration: const InputDecoration(
+                  labelText: 'Categoria do Produto',
+                ),
+                items: sortedCategories
+                    .map(
+                      (category) => DropdownMenuItem(
+                        value: category,
+                        child: Text(category),
+                      ),
+                    )
                     .toList(),
                 onChanged: (value) {
                   setState(() {
-                    _selectedType = value;
-                    _selectedProduct =
-                        null; // Reset selected product when type changes
+                    _selectedCategory = value;
+                    _selectedProductId = null;
                   });
                 },
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Obrigatório' : null,
+                validator: _requiredValue,
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<ProdutoModel>(
+              DropdownButtonFormField<String>(
+                key: ValueKey(_selectedCategory),
+                initialValue: selectedProduct?.localId,
                 decoration: const InputDecoration(labelText: 'Produto'),
-                value: _selectedProduct != null && filteredProducts.contains(_selectedProduct)
-                    ? _selectedProduct
-                    : null,
                 items: filteredProducts
-                    .map((product) => DropdownMenuItem(
-                          value: product,
-                          child: Text(product.modelo),
-                        ))
-                    .toList()
-                  ..sort((a, b) => a.value!.modelo.compareTo(b.value!.modelo)),
+                    .map(
+                      (product) => DropdownMenuItem(
+                        value: product.localId,
+                        child: Text(product.nome),
+                      ),
+                    )
+                    .toList(),
                 onChanged: (value) {
+                  final product = _findProduct(filteredProducts, value);
                   setState(() {
-                    _selectedProduct = value;
-                    if (value != null) {
-                      // Formata para 2 casas decimais e troca ponto por vírgula
-                      _costController.text = value.precoCusto.toStringAsFixed(2).replaceAll('.', ',');
-                      _salePriceController.text = value.valorVenda.toStringAsFixed(2).replaceAll('.', ',');
-                      
-                      _complementController.text = value.complemento.toString();
-                      _selectedFornecedor = value.fornecedor.isNotEmpty
-                          ? value.fornecedor
-                          : null;
+                    _selectedProductId = value;
+                    if (product != null) {
+                      _costController.text =
+                          product.precoCusto.toStringAsFixed(2).replaceAll(
+                                '.',
+                                ',',
+                              );
+                      _salePriceController.text =
+                          product.valorVenda.toStringAsFixed(2).replaceAll(
+                                '.',
+                                ',',
+                              );
+                      _selectedSupplier = product.fornecedor.isEmpty
+                          ? null
+                          : product.fornecedor;
                     }
                   });
                 },
-                validator: (value) =>
-                    value == null ? 'Selecione um produto' : null,
+                validator: _requiredValue,
               ),
               const SizedBox(height: 16),
               TextFormField(
-                controller: _qtyController,
+                controller: _quantityController,
                 decoration: const InputDecoration(labelText: 'Quantidade'),
-                validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _complementController,
-                decoration: const InputDecoration(labelText: 'Complemento'),
-                validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
+                keyboardType: TextInputType.number,
+                validator: _requiredValue,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _costController,
-                decoration:
-                    const InputDecoration(labelText: 'Custo Unitário (R\$)'),
+                decoration: const InputDecoration(
+                  labelText: 'Custo Unitário (R\$)',
+                ),
                 keyboardType: TextInputType.number,
-                validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
+                validator: _requiredValue,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _salePriceController,
                 decoration: const InputDecoration(
-                    labelText: 'Novo Valor de Venda (R\$)'),
+                  labelText: 'Novo Valor de Venda (R\$)',
+                ),
                 keyboardType: TextInputType.number,
-                validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
+                validator: _requiredValue,
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'Fornecedor',
-                ),
-                value: _selectedFornecedor,
-                items: _fornecedores.map((fornecedor) {
-                  return DropdownMenuItem(
-                    value: fornecedor,
-                    child: Text(fornecedor),
-                  );
-                }).toList(),
+                key: ValueKey(_selectedSupplier),
+                initialValue: _suppliers.contains(_selectedSupplier)
+                    ? _selectedSupplier
+                    : null,
+                decoration: const InputDecoration(labelText: 'Fornecedor'),
+                items: _suppliers
+                    .map(
+                      (supplier) => DropdownMenuItem(
+                        value: supplier,
+                        child: Text(supplier),
+                      ),
+                    )
+                    .toList(),
                 onChanged: (value) {
-                  setState(() {
-                    _selectedFornecedor = value;
-                  });
+                  setState(() => _selectedSupplier = value);
                 },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, selecione um fornecedor';
-                  }
-                  return null;
-                },
-              ),              
+                validator: _requiredValue,
+              ),
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
@@ -154,11 +163,12 @@ class _RegisterEntryScreenState extends State<RegisterEntryScreen> {
                 child: ElevatedButton(
                   onPressed: _save,
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white),
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
                   child: const Text('SALVAR ENTRADA'),
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -166,32 +176,77 @@ class _RegisterEntryScreenState extends State<RegisterEntryScreen> {
     );
   }
 
-  void _save() async {
-    if (!_formKey.currentState!.validate() || _selectedProduct == null) return;
+  Future<void> _save() async {
+    if (_formKey.currentState?.validate() != true) return;
 
-    // Normaliza números no formato brasileiro (1.234,56 -> 1234.56)
-    double _parseCurrency(String text) {
-      final cleaned = text.trim().replaceAll('.', '').replaceAll(',', '.');
-      return double.tryParse(cleaned) ?? 0.0;
-    }
-
-    int _parseInt(String text) {
-      final digits = text.replaceAll(RegExp(r'[^0-9]'), '');
-      return int.tryParse(digits) ?? 0;
+    final productId = _selectedProductId;
+    final quantity = _parseInt(_quantityController.text);
+    final costPrice = _parseCurrency(_costController.text);
+    final salePrice = _parseCurrency(_salePriceController.text);
+    if (productId == null ||
+        quantity <= 0 ||
+        costPrice <= 0 ||
+        salePrice <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Informe valores maiores que zero.')),
+      );
+      return;
     }
 
     final entry = EstoqueModel(
-      produtoId: _selectedProduct!.id!,
-      quantidade: _parseInt(_qtyController.text),
-      custoUnitario: _parseCurrency(_costController.text),
-      fornecedor: _selectedFornecedor ?? '',
-      complemento: _complementController.text,
-      novoValorVenda: _parseCurrency(_salePriceController.text),
+      produtoId: productId,
+      quantidade: quantity,
+      custoUnitario: costPrice,
+      fornecedor: _selectedSupplier ?? '',
+      complemento: '',
+      novoValorVenda: salePrice,
     );
 
-    await context
-        .read<StockProvider>()
-        .registerEntry(entry, _parseCurrency(_salePriceController.text));
-    if (mounted) Navigator.pop(context);
+    try {
+      await context.read<StockProvider>().registerEntry(entry, salePrice);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Entrada registrada com sucesso!')),
+      );
+      Navigator.pop(context);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao registrar entrada: $error')),
+      );
+    }
+  }
+
+  ProdutoModel? _findProduct(List<ProdutoModel> products, String? localId) {
+    if (localId == null) return null;
+    for (final product in products) {
+      if (product.localId == localId) return product;
+    }
+    return null;
+  }
+
+  String? _requiredValue(String? value) {
+    return value == null || value.trim().isEmpty ? 'Obrigatório' : null;
+  }
+
+  double _parseCurrency(String text) {
+    final trimmed = text.trim();
+    final normalized = trimmed.contains(',')
+        ? trimmed.replaceAll('.', '').replaceAll(',', '.')
+        : trimmed;
+    return double.tryParse(normalized) ?? 0;
+  }
+
+  int _parseInt(String text) {
+    final digits = text.replaceAll(RegExp(r'[^0-9]'), '');
+    return int.tryParse(digits) ?? 0;
+  }
+
+  @override
+  void dispose() {
+    _quantityController.dispose();
+    _costController.dispose();
+    _salePriceController.dispose();
+    super.dispose();
   }
 }

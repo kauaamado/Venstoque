@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../../models/produto_model.dart';
 import '../../providers/stock_provider.dart';
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
-import '../../models/produto_model.dart';
+import '../../utils/search_helper.dart';
+import '../../widgets/custom_search_bar.dart';
 import 'register_entry_screen.dart';
 import 'register_product_screen.dart';
-import '../../widgets/custom_search_bar.dart';
-import '../../utils/search_helper.dart'; // Corrigido para search_helper.dart
+
+enum _ProductAction { edit, delete }
 
 class StockManagementScreen extends StatefulWidget {
   const StockManagementScreen({super.key});
@@ -18,10 +21,10 @@ class StockManagementScreen extends StatefulWidget {
 
 class _StockManagementScreenState extends State<StockManagementScreen> {
   String? _selectedFilter;
-  String? _selectedType = 'Todos';
-  String _searchQuery = ''; // Nossa variável da barra de pesquisa
+  String? _selectedCategory = 'Todas';
+  String _searchQuery = '';
 
-  final List<String> _filterOptions = [
+  static const _filterOptions = [
     'Preço de Custo (Crescente)',
     'Preço de Custo (Decrescente)',
     'Preço de Venda (Crescente)',
@@ -40,48 +43,24 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final products = context.watch<StockProvider>().products;
+    final provider = context.watch<StockProvider>();
+    final products = provider.products;
+    final categories = products.map((product) => product.categoria).toSet()
+      ..removeWhere((category) => category.isEmpty);
+    final sortedCategories = categories.toList()..sort();
 
-    // ==========================================
-    // 1. APLICA A BARRA DE PESQUISA (SearchHelper)
-    // ==========================================
-    List<ProdutoModel> processedProducts = SearchHelper.filterList(
+    var processedProducts = SearchHelper.filterList(
       items: products,
       query: _searchQuery,
-      // Busca pelo nome do modelo (se quiser buscar por tipo também, mude para: (p) => '${p.modelo} ${p.tipo}')
-      searchBy: (p) => p.modelo, 
+      searchBy: (product) => '${product.nome} ${product.categoria}',
     );
 
-    // ==========================================
-    // 2. APLICA O FILTRO DE TIPO (Dropdown)
-    // ==========================================
-    if (_selectedType != null && _selectedType != 'Todos') {
-      processedProducts = processedProducts.where((p) => p.tipo == _selectedType).toList();
+    if (_selectedCategory != null && _selectedCategory != 'Todas') {
+      processedProducts = processedProducts
+          .where((product) => product.categoria == _selectedCategory)
+          .toList();
     }
-
-    // ==========================================
-    // 3. APLICA A ORDENAÇÃO (Dropdown de Filtros)
-    // ==========================================
-    if (_selectedFilter != null) {
-      processedProducts.sort((a, b) {
-        switch (_selectedFilter) {
-          case 'Preço de Custo (Crescente)':
-            return a.precoCusto.compareTo(b.precoCusto);
-          case 'Preço de Custo (Decrescente)':
-            return b.precoCusto.compareTo(a.precoCusto);
-          case 'Preço de Venda (Crescente)':
-            return a.valorVenda.compareTo(b.valorVenda);
-          case 'Preço de Venda (Decrescente)':
-            return b.valorVenda.compareTo(a.valorVenda);
-          case 'Quantidade (Crescente)':
-            return a.quantidadeEstoque.compareTo(b.quantidadeEstoque);
-          case 'Quantidade (Decrescente)':
-            return b.quantidadeEstoque.compareTo(a.quantidadeEstoque);
-          default:
-            return 0;
-        }
-      });
-    }
+    _sortProducts(processedProducts);
 
     return Scaffold(
       appBar: AppBar(
@@ -89,183 +68,124 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      body: provider.isLoading && products.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
               children: [
-                // ==========================================
-                // BARRA DE PESQUISA NA TELA
-                // ==========================================
-                CustomSearchBar(
-                  hintText: 'Buscar Produto pelo nome...',
-                  onChanged: (texto) {
-                    setState(() {
-                      _searchQuery = texto;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-                
-                const Text(
-                  'Filtrar Produtos',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CustomSearchBar(
+                        hintText: 'Buscar produto...',
+                        onChanged: (value) {
+                          setState(() => _searchQuery = value);
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Filtrar Produtos',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              initialValue:
+                                  _filterOptions.contains(_selectedFilter)
+                                      ? _selectedFilter
+                                      : null,
+                              decoration: _dropdownDecoration(),
+                              items: _filterOptions
+                                  .map(
+                                    (filter) => DropdownMenuItem(
+                                      value: filter,
+                                      child: Text(filter),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() => _selectedFilter = value);
+                              },
+                              isExpanded: true,
+                              hint: const Text('Ordenar por'),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              initialValue: _selectedCategory == 'Todas' ||
+                                      sortedCategories.contains(
+                                        _selectedCategory,
+                                      )
+                                  ? _selectedCategory
+                                  : null,
+                              decoration: _dropdownDecoration(),
+                              items: [
+                                const DropdownMenuItem(
+                                  value: 'Todas',
+                                  child: Text('Todas'),
+                                ),
+                                ...sortedCategories.map(
+                                  (category) => DropdownMenuItem(
+                                    value: category,
+                                    child: Text(category),
+                                  ),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                setState(() => _selectedCategory = value);
+                              },
+                              isExpanded: true,
+                              hint: const Text('Categoria'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
+                Expanded(
+                  child: processedProducts.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Nenhum produto encontrado.',
+                            style: TextStyle(color: Colors.grey, fontSize: 16),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 16,
-                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: processedProducts.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            return _buildProductCard(
+                              context,
+                              processedProducts[index],
+                            );
+                          },
                         ),
-                        value: _filterOptions.contains(_selectedFilter) ? _selectedFilter : null,
-                        items: _filterOptions
-                            .map((filter) => DropdownMenuItem(
-                                  value: filter,
-                                  child: Text(filter),
-                                ))
-                            .toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedFilter = value;
-                          });
-                        },
-                        isExpanded: true,
-                        hint: const Text('Ordenar por'),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 16,
-                          ),
-                        ),
-                        value: () {
-                          final types = products.map((p) => p.tipo).toSet().toList();
-                          final valid = ['Todos', ...types];
-                          return valid.contains(_selectedType) ? _selectedType : null;
-                        }(),
-                        items: [
-                          const DropdownMenuItem(
-                            value: 'Todos',
-                            child: Text('Todos'),
-                          ),
-                          ...products
-                              .map((p) => p.tipo)
-                              .toSet()
-                              .map((type) => DropdownMenuItem(
-                                    value: type,
-                                    child: Text(type),
-                                  ))
-                              .toList(),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedType = value;
-                          });
-                        },
-                        isExpanded: true,
-                        hint: const Text('Tipo'),
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
-          ),
-          Expanded(
-            child: processedProducts.isEmpty
-                ? const Center(
-                    child: Text(
-                      'Nenhum produto encontrado.',
-                      style: TextStyle(color: Colors.grey, fontSize: 16),
-                    ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: processedProducts.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final prod = processedProducts[index];
-                      return Card(
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.grey.shade700),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(12),
-                          title: Text(prod.modelo,
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                          subtitle: Text(
-                              '${prod.tipo} - ${prod.complemento}\nCusto: ${AppFormatters.formatCurrency(prod.precoCusto)}',
-                              style: TextStyle(color: Colors.grey.shade400)),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                'Qtd: ${prod.quantidadeEstoque}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: prod.quantidadeEstoque <= 0
-                                      ? Colors.red
-                                      : (prod.isLowStock
-                                          ? Colors.orange
-                                          : Colors.green),
-                                ),
-                              ),
-                              Text(
-                                AppFormatters.formatCurrency(prod.valorVenda),
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           FloatingActionButton.extended(
             heroTag: 'registerProduct',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const RegisterProductScreen(),
-                ),
-              );
-            },
+            onPressed: () => _openProductForm(),
             backgroundColor: AppColors.primary,
             icon: const Icon(Icons.add_box, color: Colors.white),
-            label: const Text('Novo Produto',
-                style: TextStyle(color: Colors.white)),
+            label: const Text(
+              'Novo Produto',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
           const SizedBox(height: 16),
           FloatingActionButton.extended(
@@ -274,17 +194,178 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const RegisterEntryScreen(),
+                  builder: (_) => const RegisterEntryScreen(),
                 ),
               );
             },
             backgroundColor: AppColors.primary,
             icon: const Icon(Icons.add_shopping_cart, color: Colors.white),
-            label: const Text('Nova Entrada',
-                style: TextStyle(color: Colors.white)),
+            label: const Text(
+              'Nova Entrada',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildProductCard(BuildContext context, ProdutoModel product) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade700),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(12),
+        title: Text(
+          product.nome,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        subtitle: Text(
+          '${product.categoria}\n'
+          'Fornecedor: ${product.fornecedor.isEmpty ? "-" : product.fornecedor}\n'
+          'Custo: ${AppFormatters.formatCurrency(product.precoCusto)}',
+          style: TextStyle(color: Colors.grey.shade400),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  'Qtd: ${product.quantidadeEstoque}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: product.quantidadeEstoque <= 0
+                        ? Colors.red
+                        : product.isLowStock
+                            ? Colors.orange
+                            : Colors.green,
+                  ),
+                ),
+                Text(
+                  AppFormatters.formatCurrency(product.valorVenda),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            PopupMenuButton<_ProductAction>(
+              onSelected: (action) {
+                switch (action) {
+                  case _ProductAction.edit:
+                    _openProductForm(product);
+                  case _ProductAction.delete:
+                    _confirmDelete(product);
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: _ProductAction.edit,
+                  child: Text('Editar'),
+                ),
+                PopupMenuItem(
+                  value: _ProductAction.delete,
+                  child: Text('Remover'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _sortProducts(List<ProdutoModel> products) {
+    products.sort((first, second) {
+      switch (_selectedFilter) {
+        case 'Preço de Custo (Crescente)':
+          return first.precoCusto.compareTo(second.precoCusto);
+        case 'Preço de Custo (Decrescente)':
+          return second.precoCusto.compareTo(first.precoCusto);
+        case 'Preço de Venda (Crescente)':
+          return first.valorVenda.compareTo(second.valorVenda);
+        case 'Preço de Venda (Decrescente)':
+          return second.valorVenda.compareTo(first.valorVenda);
+        case 'Quantidade (Crescente)':
+          return first.quantidadeEstoque.compareTo(second.quantidadeEstoque);
+        case 'Quantidade (Decrescente)':
+          return second.quantidadeEstoque.compareTo(first.quantidadeEstoque);
+        default:
+          return first.nome.toLowerCase().compareTo(
+                second.nome.toLowerCase(),
+              );
+      }
+    });
+  }
+
+  InputDecoration _dropdownDecoration() {
+    return InputDecoration(
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      contentPadding: const EdgeInsets.symmetric(
+        vertical: 12,
+        horizontal: 16,
+      ),
+    );
+  }
+
+  void _openProductForm([ProdutoModel? product]) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RegisterProductScreen(product: product),
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(ProdutoModel product) async {
+    final localId = product.localId;
+    if (localId == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remover produto'),
+        content: Text(
+          'Deseja remover ${product.nome}? Produtos presentes em vendas serão apenas desativados.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Remover'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final result = await context.read<StockProvider>().deleteProduct(localId);
+      if (!mounted) return;
+      final message = result == ProductDeleteResult.deactivated
+          ? 'Produto desativado porque possui vendas.'
+          : 'Produto removido.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao remover produto: $error')),
+      );
+    }
   }
 }

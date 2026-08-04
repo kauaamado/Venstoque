@@ -10,7 +10,7 @@ class SaleProvider with ChangeNotifier {
   final SaleService _saleService = SaleService();
 
   ClienteModel? _selectedCustomer;
-  List<ItemVendaModel> _cart = [];
+  final List<ItemVendaModel> _cart = [];
   String _paymentType = 'a_vista';
   bool _isLoading = false;
 
@@ -45,7 +45,7 @@ class SaleProvider with ChangeNotifier {
     } else {
       _cart.add(ItemVendaModel(
         produtoId: produto.id!,
-        produtoNome: produto.modelo, // Supondo que você adicione 'produtoNome' no seu ItemVendaModel temporariamente para a UI
+        produtoNome: produto.nome,
         quantidade: quantidade,
         precoUnitario: produto.valorVenda,
         custoUnitario: produto.precoCusto,

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../models/produto_model.dart';
 import '../../providers/stock_provider.dart';
 import '../../utils/constants.dart';
 
 class RegisterProductScreen extends StatefulWidget {
-  const RegisterProductScreen({super.key});
+  const RegisterProductScreen({super.key, this.product});
+
+  final ProdutoModel? product;
 
   @override
   State<RegisterProductScreen> createState() => _RegisterProductScreenState();
@@ -13,15 +16,14 @@ class RegisterProductScreen extends StatefulWidget {
 
 class _RegisterProductScreenState extends State<RegisterProductScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _complementController = TextEditingController();
-  final _costController = TextEditingController();
-  final _salePriceController = TextEditingController();
-  
-  String? _selectedType;
-  String? _selectedFornecedor; // <-- Nova variável para o fornecedor selecionado
+  late final TextEditingController _nameController;
+  late final TextEditingController _costController;
+  late final TextEditingController _salePriceController;
 
-  final List<String> _productTypes = [
+  String? _selectedCategory;
+  String? _selectedSupplier;
+
+  static const _defaultCategories = [
     'Perfumes',
     'Eletrônicos',
     'Relógios',
@@ -31,18 +33,50 @@ class _RegisterProductScreenState extends State<RegisterProductScreen> {
     'Canecas',
   ];
 
-  // <-- Lista fixa de fornecedores
-  final List<String> _fornecedores = [
+  static const _defaultSuppliers = [
     'Papo de Boleiro',
     'Rasha',
     'Smart Mania',
     'Outros',
   ];
 
+  bool get _isEditing => widget.product != null;
+
+  List<String> get _categories => _optionsIncluding(
+        _defaultCategories,
+        widget.product?.categoria,
+      );
+
+  List<String> get _suppliers => _optionsIncluding(
+        _defaultSuppliers,
+        widget.product?.fornecedor,
+      );
+
+  @override
+  void initState() {
+    super.initState();
+    final product = widget.product;
+    _nameController = TextEditingController(text: product?.nome ?? '');
+    _costController = TextEditingController(
+      text: product == null
+          ? ''
+          : product.precoCusto.toStringAsFixed(2).replaceAll('.', ','),
+    );
+    _salePriceController = TextEditingController(
+      text: product == null
+          ? ''
+          : product.valorVenda.toStringAsFixed(2).replaceAll('.', ','),
+    );
+    _selectedCategory = product?.categoria;
+    _selectedSupplier = product?.fornecedor;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Cadastrar Produto')),
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Editar Produto' : 'Cadastrar Produto'),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -51,75 +85,62 @@ class _RegisterProductScreenState extends State<RegisterProductScreen> {
             children: [
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'Tipo'),
-                value: _selectedType,
-                items: _productTypes
-                    .map((type) => DropdownMenuItem(
-                          value: type,
-                          child: Text(type),
-                        ))
+                initialValue: _selectedCategory,
+                decoration: const InputDecoration(labelText: 'Categoria'),
+                items: _categories
+                    .map(
+                      (category) => DropdownMenuItem(
+                        value: category,
+                        child: Text(category),
+                      ),
+                    )
                     .toList(),
                 onChanged: (value) {
-                  setState(() {
-                    _selectedType = value;
-                  });
+                  setState(() => _selectedCategory = value);
                 },
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Obrigatório' : null,
+                validator: _requiredValue,
               ),
               const SizedBox(height: 24),
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Nome do Produto'),
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Obrigatório' : null,
+                validator: _requiredValue,
               ),
               const SizedBox(height: 24),
               TextFormField(
-                controller: _complementController,
-                decoration: const InputDecoration(labelText: 'Complemento'),
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Obrigatório' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
                 controller: _costController,
-                decoration:
-                    const InputDecoration(labelText: 'Custo Unitário (R\$)'),
+                decoration: const InputDecoration(
+                  labelText: 'Custo Unitário (R\$)',
+                ),
                 keyboardType: TextInputType.number,
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Obrigatório' : null,
+                validator: _requiredValue,
               ),
               const SizedBox(height: 24),
               TextFormField(
                 controller: _salePriceController,
-                decoration:
-                    const InputDecoration(labelText: 'Preço de Venda (R\$)'),
+                decoration: const InputDecoration(
+                  labelText: 'Preço de Venda (R\$)',
+                ),
                 keyboardType: TextInputType.number,
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Obrigatório' : null,
+                validator: _requiredValue,
               ),
               const SizedBox(height: 24),
-              
-              // <-- Dropdown de Fornecedores substituiu o TextFormField aqui
               DropdownButtonFormField<String>(
+                initialValue: _selectedSupplier,
                 decoration: const InputDecoration(labelText: 'Fornecedor'),
-                value: _selectedFornecedor,
-                items: _fornecedores
-                    .map((fornecedor) => DropdownMenuItem(
-                          value: fornecedor,
-                          child: Text(fornecedor),
-                        ))
+                items: _suppliers
+                    .map(
+                      (supplier) => DropdownMenuItem(
+                        value: supplier,
+                        child: Text(supplier),
+                      ),
+                    )
                     .toList(),
                 onChanged: (value) {
-                  setState(() {
-                    _selectedFornecedor = value;
-                  });
+                  setState(() => _selectedSupplier = value);
                 },
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Obrigatório' : null,
+                validator: _requiredValue,
               ),
-
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
@@ -130,7 +151,9 @@ class _RegisterProductScreenState extends State<RegisterProductScreen> {
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('SALVAR PRODUTO'),
+                  child: Text(
+                    _isEditing ? 'SALVAR ALTERAÇÕES' : 'SALVAR PRODUTO',
+                  ),
                 ),
               ),
             ],
@@ -140,63 +163,84 @@ class _RegisterProductScreenState extends State<RegisterProductScreen> {
     );
   }
 
-  void _save() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _save() async {
+    if (_formKey.currentState?.validate() != true) return;
+
+    final costPrice = _parseCurrency(_costController.text);
+    final salePrice = _parseCurrency(_salePriceController.text);
+    if (costPrice <= 0 || salePrice <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Informe valores de custo e venda maiores que zero.'),
+        ),
+      );
+      return;
+    }
+
+    final current = widget.product;
+    final product = ProdutoModel(
+      localId: current?.localId,
+      id: current?.id,
+      nome: _nameController.text,
+      categoria: _selectedCategory ?? '',
+      fornecedor: _selectedSupplier ?? '',
+      precoCusto: costPrice,
+      valorVenda: salePrice,
+      quantidadeEstoque: current?.quantidadeEstoque ?? 0,
+      ativo: current?.ativo ?? true,
+    );
 
     try {
-      final precoCusto = double.tryParse(_costController.text);
-      final valorVenda = double.tryParse(_salePriceController.text);
-
-      if (precoCusto == null || precoCusto <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Custo Unitário deve ser um número válido e maior que zero.')),
-        );
-        return;
+      final provider = context.read<StockProvider>();
+      if (_isEditing) {
+        await provider.updateProduct(product);
+      } else {
+        await provider.addProduct(product);
       }
+      if (!mounted) return;
 
-      if (valorVenda == null || valorVenda <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Preço de Venda deve ser um número válido e maior que zero.')),
-        );
-        return;
-      }
-
-      final newProduct = ProdutoModel(
-        modelo: _nameController.text,
-        tipo: _selectedType!,
-        complemento: _complementController.text,
-        fornecedor: _selectedFornecedor!, // <-- Usando a variável do dropdown
-        precoCusto: precoCusto,
-        valorVenda: valorVenda,
-        quantidadeEstoque: 0,
-      );
-
-      await context.read<StockProvider>().addProduct(newProduct);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Produto cadastrado com sucesso!')),
-        );
-        Navigator.pop(context);
-      }
-    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao salvar produto: $e')),
+        SnackBar(
+          content: Text(
+            _isEditing
+                ? 'Produto atualizado com sucesso!'
+                : 'Produto cadastrado com sucesso!',
+          ),
+        ),
+      );
+      Navigator.pop(context);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao salvar produto: $error')),
       );
     }
+  }
+
+  List<String> _optionsIncluding(List<String> defaults, String? current) {
+    if (current == null || current.isEmpty || defaults.contains(current)) {
+      return defaults;
+    }
+    return [current, ...defaults];
+  }
+
+  String? _requiredValue(String? value) {
+    return value == null || value.trim().isEmpty ? 'Obrigatório' : null;
+  }
+
+  double _parseCurrency(String text) {
+    final trimmed = text.trim();
+    final normalized = trimmed.contains(',')
+        ? trimmed.replaceAll('.', '').replaceAll(',', '.')
+        : trimmed;
+    return double.tryParse(normalized) ?? 0;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _costController.dispose();
-    _complementController.dispose();
     _salePriceController.dispose();
-    // _supplierController.dispose(); <-- Removido daqui também
     super.dispose();
   }
 }

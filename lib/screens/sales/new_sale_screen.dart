@@ -176,7 +176,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     final List<ProdutoModel> filteredProducts = SearchHelper.filterList(
       items: products,
       query: _searchProductQuery,
-      searchBy: (p) => p.modelo,
+      searchBy: (p) => p.nome,
     );
 
     return Column(
@@ -219,17 +219,27 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                   itemBuilder: (context, index) {
                     final prod = filteredProducts[index];
                     return ListTile(
-                      title: Text(prod.modelo, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      title: Text(prod.nome, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       subtitle: Text(
                         'Estoque: ${prod.quantidadeEstoque}  •  ${AppFormatters.formatCurrency(prod.valorVenda)}',
                         style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
                       ),
                       trailing: const Icon(Icons.add_shopping_cart, color: Colors.green),
                       onTap: () {
+                        if (prod.id == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Sincronize o produto antes de vender',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
                         context.read<SaleProvider>().addToCart(prod, 1);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('${prod.modelo} adicionado ao carrinho!'),
+                            content: Text('${prod.nome} adicionado ao carrinho!'),
                             duration: const Duration(seconds: 1),
                             backgroundColor: Colors.green,
                           )
