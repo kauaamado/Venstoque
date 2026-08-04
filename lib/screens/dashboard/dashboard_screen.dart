@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:provider/provider.dart';
+
+import '../../services/sync_service.dart';
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/summary_card.dart';
@@ -17,6 +20,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double _monthlySales = 0;
   double _receivables = 0;
   Map<String, int> _topCategories = {};
+  bool _isSyncing = false;
 
   @override
   void initState() {
@@ -25,81 +29,144 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadStats() async {
-    final client = SupabaseService().client;
+    try {
+      final client = SupabaseService().client;
 
-    final now = DateTime.now();
-    final startOfMonth = DateTime(now.year, now.month, 1);
-    final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+      final now = DateTime.now();
+      final startOfMonth = DateTime(now.year, now.month, 1);
+      final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
 
-    final salesRes = await client
-        .from(AppTables.vendas)
-        .select('valor_total')
-        .gte('data_venda', startOfMonth.toIso8601String())
-        .lte('data_venda', endOfMonth.toIso8601String());
+      final salesRes = await client
+          .from(AppTables.vendas)
+          .select('valor_total')
+          .gte('data_venda', startOfMonth.toIso8601String())
+          .lte('data_venda', endOfMonth.toIso8601String());
 
-    final parcelsRes = await client
-        .from(AppTables.parcelas)
-        .select('valor')
-        .eq('status', 'pendente')
-        .gte('data_vencimento', startOfMonth.toIso8601String())
-        .lte('data_vencimento', endOfMonth.toIso8601String());
+      final parcelsRes = await client
+          .from(AppTables.parcelas)
+          .select('valor')
+          .eq('status', 'pendente')
+          .gte('data_vencimento', startOfMonth.toIso8601String())
+          .lte('data_vencimento', endOfMonth.toIso8601String());
 
-    // 1. Busca também a quantidade_estoque agora!
-    final productsRes = await client.from(AppTables.produtos).select('tipo, quantidade_estoque');
+      final productsRes = await client
+          .from(AppTables.produtos)
+          .select('categoria, quantidade_estoque');
 
-    double totalSales = 0;
-    for (var s in (salesRes as List)) {
-      totalSales += (s['valor_total'] as num).toDouble();
-    }
-
-    double totalReceivables = 0;
-    for (var p in (parcelsRes as List)) {
-      totalReceivables += (p['valor'] as num).toDouble();
-    }
-
-    // 2. Soma a quantidade real do estoque por categoria
-    Map<String, int> categories = {};
-    for (var prod in (productsRes as List)) {
-      String t = prod['tipo'] ?? 'Outros';
-      int qtd = (prod['quantidade_estoque'] as num?)?.toInt() ?? 0;
-      
-      // Só adiciona no gráfico se tiver pelo menos 1 no estoque
-      if (qtd > 0) {
-        categories[t] = (categories[t] ?? 0) + qtd;
+      double totalSales = 0;
+      for (var s in (salesRes as List)) {
+        totalSales += (s['valor_total'] as num).toDouble();
       }
-    }
 
-    setState(() {
-      _monthlySales = totalSales;
-      _receivables = totalReceivables;
-      _topCategories = categories;
-    });
+      double totalReceivables = 0;
+      for (var p in (parcelsRes as List)) {
+        totalReceivables += (p['valor'] as num).toDouble();
+      }
+
+      Map<String, int> categories = {};
+      for (var prod in (productsRes as List)) {
+        String t = prod['categoria'] ?? 'Outros';
+        int qtd = (prod['quantidade_estoque'] as num?)?.toInt() ?? 0;
+
+        if (qtd > 0) {
+          categories[t] = (categories[t] ?? 0) + qtd;
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _monthlySales = totalSales;
+        _receivables = totalReceivables;
+        _topCategories = categories;
+      });
+    } catch (error, stackTrace) {
+      debugPrint('Erro ao carregar dados do dashboard: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
+
+  Future<void> _testSync() async {
+    if (_isSyncing) return;
+
+    setState(() => _isSyncing = true);
+
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sincronização iniciada')),
+      );
+
+      await context.read<SyncService>().syncAll();
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Sincronização concluída. Consulte o console para possíveis falhas.',
+          ),
+        ),
+      );
+    } catch (error, stackTrace) {
+      debugPrint('Falha inesperada ao testar a sincronização: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível concluir a sincronização.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSyncing = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     // Calcula o total geral de itens no estoque para fazer a porcentagem
-    final totalItensEstoque = _topCategories.values.fold(0, (sum, item) => sum + item);
+    final totalItensEstoque =
+        _topCategories.values.fold(0, (sum, item) => sum + item);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Venstoque', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Venstoque',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          IconButton(
+            tooltip: 'Testar Sync',
+            onPressed: _isSyncing ? null : _testSync,
+            icon: _isSyncing
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.sync),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _loadStats,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          physics: const AlwaysScrollableScrollPhysics(), // Garante que o refresh funcione mesmo se a tela for pequena
+          physics:
+              const AlwaysScrollableScrollPhysics(), // Garante que o refresh funcione mesmo se a tela for pequena
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
                 'Visão Geral',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary),
               ),
               const SizedBox(height: 16),
               GridView.count(
@@ -125,13 +192,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
               const SizedBox(height: 32),
-              
+
               const Text(
                 'Distribuição do Estoque',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary),
               ),
               const SizedBox(height: 16),
-              
+
               // Bloco do Gráfico
               Container(
                 padding: const EdgeInsets.all(24),
@@ -144,27 +214,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     SizedBox(
                       height: 220, // Altura do gráfico
-                      child: _topCategories.isEmpty 
-                        ? const Center(child: Text('Estoque zerado', style: TextStyle(color: Colors.grey)))
-                        : PieChart(
-                            PieChartData(
-                              centerSpaceRadius: 0, // Zero tira o buraco e faz virar pizza completa
-                              sectionsSpace: 1, // Espaço mínimo entre as fatias
-                              sections: _topCategories.entries.map((e) {
-                                final color = Colors.primaries[_topCategories.keys.toList().indexOf(e.key) % Colors.primaries.length];
-                                return PieChartSectionData(
-                                  value: e.value.toDouble(),
-                                  color: color,
-                                  radius: 110, // Tamanho da fatia
-                                  showTitle: false, // Esconde os textos
-                                );
-                              }).toList(),
+                      child: _topCategories.isEmpty
+                          ? const Center(
+                              child: Text('Estoque zerado',
+                                  style: TextStyle(color: Colors.grey)))
+                          : PieChart(
+                              PieChartData(
+                                centerSpaceRadius:
+                                    0, // Zero tira o buraco e faz virar pizza completa
+                                sectionsSpace:
+                                    1, // Espaço mínimo entre as fatias
+                                sections: _topCategories.entries.map((e) {
+                                  final color = Colors.primaries[_topCategories
+                                          .keys
+                                          .toList()
+                                          .indexOf(e.key) %
+                                      Colors.primaries.length];
+                                  return PieChartSectionData(
+                                    value: e.value.toDouble(),
+                                    color: color,
+                                    radius: 110, // Tamanho da fatia
+                                    showTitle: false, // Esconde os textos
+                                  );
+                                }).toList(),
+                              ),
                             ),
-                          ),
                     ),
-                    
+
                     const SizedBox(height: 32),
-                    
+
                     // Legenda customizada com as Porcentagens
                     if (_topCategories.isNotEmpty)
                       Wrap(
@@ -174,11 +252,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         children: _topCategories.entries.map((e) {
                           final category = e.key;
                           final value = e.value;
-                          final color = Colors.primaries[_topCategories.keys.toList().indexOf(category) % Colors.primaries.length];
-                          
+                          final color = Colors.primaries[
+                              _topCategories.keys.toList().indexOf(category) %
+                                  Colors.primaries.length];
+
                           // Regra de 3 para descobrir a porcentagem
-                          final percentage = totalItensEstoque > 0 ? (value / totalItensEstoque) * 100 : 0.0;
-                          
+                          final percentage = totalItensEstoque > 0
+                              ? (value / totalItensEstoque) * 100
+                              : 0.0;
+
                           return Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -195,7 +277,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Text(
                                 '$category (${percentage.toStringAsFixed(1)}%)',
                                 style: const TextStyle(
-                                  color: Colors.white, 
+                                  color: Colors.white,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -208,7 +290,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              
+
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
@@ -216,11 +298,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const SalesHistoryScreen()),
+                      MaterialPageRoute(
+                          builder: (context) => const SalesHistoryScreen()),
                     );
                   },
                   icon: const Icon(Icons.history, color: AppColors.primary),
-                  label: const Text('VER HISTÓRICO DE VENDAS', style: TextStyle(color: Colors.white)),
+                  label: const Text('VER HISTÓRICO DE VENDAS',
+                      style: TextStyle(color: Colors.white)),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: AppColors.primary),
                     padding: const EdgeInsets.symmetric(vertical: 16),

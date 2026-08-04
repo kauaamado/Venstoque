@@ -1,20 +1,25 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:isar_community/isar.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'providers/customer_provider.dart';
-import 'providers/stock_provider.dart';
 import 'providers/sale_provider.dart';
+import 'providers/stock_provider.dart';
+import 'screens/customers/customer_list_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
-import 'screens/stock/stock_management_screen.dart';
 import 'screens/sales/new_sale_screen.dart';
 import 'screens/sales/receivables_screen.dart';
-import 'screens/customers/customer_list_screen.dart';
+import 'screens/stock/stock_management_screen.dart';
+import 'services/local_database.dart';
+import 'services/sync_service.dart';
 import 'utils/constants.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+const String _syncTestEmpresaId = '07039448-04c1-4ecd-94f0-65176475868c';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,14 +32,34 @@ Future<void> main() async {
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
+  final devLoginEmail = dotenv.env['DEV_LOGIN_EMAIL']?.trim();
+  final devLoginPassword = dotenv.env['DEV_LOGIN_PASSWORD'];
+  if (devLoginEmail != null &&
+      devLoginEmail.isNotEmpty &&
+      devLoginPassword != null &&
+      devLoginPassword.isNotEmpty) {
+    try {
+      await Supabase.instance.client.auth.signInWithPassword(
+        email: devLoginEmail,
+        password: devLoginPassword,
+      );
+    } catch (error) {
+      debugPrint('Erro no login automático de desenvolvimento: $error');
+    }
+  }
+
+  final isar = await LocalDatabase.init();
+
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-  runApp(const VenstoqueApp());
+  runApp(VenstoqueApp(isar: isar));
 }
 
 class VenstoqueApp extends StatelessWidget {
-  const VenstoqueApp({super.key});
+  const VenstoqueApp({super.key, required this.isar});
+
+  final Isar isar;
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +68,12 @@ class VenstoqueApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CustomerProvider()),
         ChangeNotifierProvider(create: (_) => StockProvider()),
         ChangeNotifierProvider(create: (_) => SaleProvider()),
+        Provider<SyncService>(
+          create: (_) => SyncService(
+            isar,
+            empresaId: _syncTestEmpresaId,
+          ),
+        ),
       ],
       child: MaterialApp(
         title: 'Venstoque',
