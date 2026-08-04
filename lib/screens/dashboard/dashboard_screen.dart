@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 
+import '../../providers/sale_provider.dart';
+import '../../providers/stock_provider.dart';
 import '../../services/sync_service.dart';
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/summary_card.dart';
-import '../../services/supabase_service.dart';
 import '../sales/sale_history_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -17,70 +18,22 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  double _monthlySales = 0;
-  double _receivables = 0;
-  Map<String, int> _topCategories = {};
   bool _isSyncing = false;
 
   @override
   void initState() {
     super.initState();
-    _loadStats();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadStats());
   }
 
   Future<void> _loadStats() async {
     try {
-      final client = SupabaseService().client;
-
-      final now = DateTime.now();
-      final startOfMonth = DateTime(now.year, now.month, 1);
-      final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-
-      final salesRes = await client
-          .from(AppTables.vendas)
-          .select('valor_total')
-          .gte('data_venda', startOfMonth.toIso8601String())
-          .lte('data_venda', endOfMonth.toIso8601String());
-
-      final parcelsRes = await client
-          .from(AppTables.parcelas)
-          .select('valor')
-          .eq('status', 'pendente')
-          .gte('data_vencimento', startOfMonth.toIso8601String())
-          .lte('data_vencimento', endOfMonth.toIso8601String());
-
-      final productsRes = await client
-          .from(AppTables.produtos)
-          .select('categoria, quantidade_estoque');
-
-      double totalSales = 0;
-      for (var s in (salesRes as List)) {
-        totalSales += (s['valor_total'] as num).toDouble();
-      }
-
-      double totalReceivables = 0;
-      for (var p in (parcelsRes as List)) {
-        totalReceivables += (p['valor'] as num).toDouble();
-      }
-
-      Map<String, int> categories = {};
-      for (var prod in (productsRes as List)) {
-        String t = prod['categoria'] ?? 'Outros';
-        int qtd = (prod['quantidade_estoque'] as num?)?.toInt() ?? 0;
-
-        if (qtd > 0) {
-          categories[t] = (categories[t] ?? 0) + qtd;
-        }
-      }
-
-      if (!mounted) return;
-      setState(() {
-        _monthlySales = totalSales;
-        _receivables = totalReceivables;
-        _topCategories = categories;
-      });
+      await Future.wait([
+        context.read<SaleProvider>().loadSales(),
+        context.read<StockProvider>().loadProducts(),
+      ]);
     } catch (error, stackTrace) {
-      debugPrint('Erro ao carregar dados do dashboard: $error');
+      debugPrint('Erro ao carregar dados locais do dashboard: $error');
       debugPrintStack(stackTrace: stackTrace);
     }
   }
@@ -124,9 +77,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Calcula o total geral de itens no estoque para fazer a porcentagem
+    final sales = context.watch<SaleProvider>();
+    final stock = context.watch<StockProvider>();
+    final now = DateTime.now();
+    final startOfMonth = DateTime(now.year, now.month);
+    final startOfNextMonth = DateTime(now.year, now.month + 1);
+    final monthlySales = sales.sales
+        .where(
+          (sale) =>
+              !sale.dataVenda.isBefore(startOfMonth) &&
+              sale.dataVenda.isBefore(startOfNextMonth),
+        )
+        .fold<double>(0, (total, sale) => total + sale.valorTotal);
+    final receivables = sales.receivables.where((installment) {
+      final dueDate = DateTime.tryParse(
+        installment['data_vencimento']?.toString() ?? '',
+      );
+      return dueDate != null &&
+          !dueDate.isBefore(startOfMonth) &&
+          dueDate.isBefore(startOfNextMonth);
+    }).fold<double>(
+      0,
+      (total, installment) =>
+          total + ((installment['valor'] as num?)?.toDouble() ?? 0),
+    );
+    final topCategories = <String, int>{};
+    for (final product in stock.products) {
+      if (product.quantidadeEstoque <= 0) continue;
+      final category = product.categoria.isEmpty ? 'Outros' : product.categoria;
+      topCategories[category] =
+          (topCategories[category] ?? 0) + product.quantidadeEstoque;
+    }
     final totalItensEstoque =
-        _topCategories.values.fold(0, (sum, item) => sum + item);
+        topCategories.values.fold(0, (sum, item) => sum + item);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -179,13 +162,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   SummaryCard(
                     title: 'Vendido (Mês)',
-                    value: AppFormatters.formatCurrency(_monthlySales),
+                    value: AppFormatters.formatCurrency(monthlySales),
                     icon: Icons.attach_money,
                     color: AppColors.primary,
                   ),
                   SummaryCard(
                     title: 'A Receber (Mês)',
-                    value: AppFormatters.formatCurrency(_receivables),
+                    value: AppFormatters.formatCurrency(receivables),
                     icon: Icons.account_balance_wallet,
                     color: AppColors.warning,
                   ),
@@ -214,7 +197,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     SizedBox(
                       height: 220, // Altura do gráfico
-                      child: _topCategories.isEmpty
+                      child: topCategories.isEmpty
                           ? const Center(
                               child: Text('Estoque zerado',
                                   style: TextStyle(color: Colors.grey)))
@@ -224,8 +207,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     0, // Zero tira o buraco e faz virar pizza completa
                                 sectionsSpace:
                                     1, // Espaço mínimo entre as fatias
-                                sections: _topCategories.entries.map((e) {
-                                  final color = Colors.primaries[_topCategories
+                                sections: topCategories.entries.map((e) {
+                                  final color = Colors.primaries[topCategories
                                           .keys
                                           .toList()
                                           .indexOf(e.key) %
@@ -244,16 +227,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 32),
 
                     // Legenda customizada com as Porcentagens
-                    if (_topCategories.isNotEmpty)
+                    if (topCategories.isNotEmpty)
                       Wrap(
                         spacing: 16,
                         runSpacing: 12,
                         alignment: WrapAlignment.center,
-                        children: _topCategories.entries.map((e) {
+                        children: topCategories.entries.map((e) {
                           final category = e.key;
                           final value = e.value;
                           final color = Colors.primaries[
-                              _topCategories.keys.toList().indexOf(category) %
+                              topCategories.keys.toList().indexOf(category) %
                                   Colors.primaries.length];
 
                           // Regra de 3 para descobrir a porcentagem

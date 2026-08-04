@@ -1,21 +1,19 @@
 class SearchHelper {
-  /// Filtra qualquer tipo de lista [T] baseado em um termo de busca.
+  const SearchHelper._();
+
   static List<T> filterList<T>({
     required List<T> items,
-    String? query, // Mudamos para String? para aceitar nulos em segurança
-    required String? Function(T item) searchBy, // Aceita que o nome venha nulo do banco
+    String? query,
+    required String? Function(T item) searchBy,
   }) {
-    // Se a query for nula ou vazia, não precisa filtrar nada
-    if (query == null || query.trim().isEmpty) return items; 
-    
-    final lowerQuery = query.toLowerCase();
-    
+    final normalizedQuery = query?.trim().toLowerCase();
+    if (normalizedQuery == null || normalizedQuery.isEmpty) {
+      return List<T>.of(items);
+    }
+
     return items.where((item) {
       final value = searchBy(item);
-      if (value == null) return false; // Se o produto/cliente estiver sem nome no banco, ignora
-      
-      final textToSearch = value.toLowerCase();
-      return textToSearch.contains(lowerQuery);
+      return value?.toLowerCase().contains(normalizedQuery) ?? false;
     }).toList();
   }
 }

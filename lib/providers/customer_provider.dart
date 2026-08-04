@@ -6,7 +6,6 @@ import 'package:isar_community/isar.dart';
 import '../models/cliente_model.dart';
 import '../models/local/cliente_model.dart';
 import '../models/local/venda_model.dart';
-import '../utils/formatters.dart';
 
 enum CustomerDeleteResult { deleted, deactivated }
 
@@ -34,25 +33,13 @@ class CustomerProvider with ChangeNotifier {
 
   List<ClienteModel> _customers = [];
   bool _isLoading = false;
-  bool _isLoadingHistory = false;
   bool _isDisposed = false;
   int _refreshVersion = 0;
   String? _errorMessage;
-  List<Map<String, dynamic>> _customerHistory = [];
-  final Map<String, Map<String, dynamic>> _customerInsightsCache = {};
 
   List<ClienteModel> get customers => List.unmodifiable(_customers);
   bool get isLoading => _isLoading;
-  bool get isLoadingHistory => _isLoadingHistory;
   String? get errorMessage => _errorMessage;
-  List<Map<String, dynamic>> get customerHistory =>
-      List.unmodifiable(_customerHistory);
-  Map<String, Map<String, dynamic>> get customerInsightsCache =>
-      Map.unmodifiable(_customerInsightsCache);
-
-  Map<String, dynamic>? getCachedInsights(String customerId) {
-    return _customerInsightsCache[customerId];
-  }
 
   Future<void> loadCustomers() async {
     _setLoading(true);
@@ -124,38 +111,9 @@ class CustomerProvider with ChangeNotifier {
           result = CustomerDeleteResult.deleted;
         }
       });
-
-      _customerInsightsCache.remove(customerId);
     });
 
     return result;
-  }
-
-  Future<Map<String, dynamic>> getCustomerInsights(String customerId) async {
-    final result = <String, dynamic>{
-      'totalComprado': 0.0,
-      'tipoMaisComprado': '-',
-      'tipoPagamentoMaisUsado': '-',
-      'totalPendente': 0.0,
-      'totalAtrasos': 0,
-    };
-    _customerInsightsCache[customerId] = result;
-    return result;
-  }
-
-  Future<void> loadCustomerHistory(String customerId, int days) async {
-    _isLoadingHistory = true;
-    _notifyListeners();
-    try {
-      _customerHistory = [];
-    } finally {
-      _isLoadingHistory = false;
-      _notifyListeners();
-    }
-  }
-
-  String formatarPreco(num preco) {
-    return AppFormatters.formatCurrency(preco.toDouble());
   }
 
   Future<void> _runMutation(
@@ -208,13 +166,6 @@ class CustomerProvider with ChangeNotifier {
       );
 
     _customers = visibleCustomers;
-    final visibleIds = visibleCustomers
-        .map((cliente) => cliente.localId)
-        .whereType<String>()
-        .toSet();
-    _customerInsightsCache.removeWhere(
-      (localId, _) => !visibleIds.contains(localId),
-    );
   }
 
   ClienteModel _toModel(ClienteLocal cliente) {

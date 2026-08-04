@@ -1,31 +1,38 @@
 class ParcelaModel {
+  ParcelaModel({
+    this.localId,
+    this.id,
+    this.vendaId = '',
+    required this.numeroParcela,
+    required this.valor,
+    required this.dataVencimento,
+    this.dataPagamento,
+    this.status = 'pendente',
+  });
+
+  final String? localId;
   final String? id;
   final String vendaId;
   final int numeroParcela;
   final double valor;
   final DateTime dataVencimento;
   DateTime? dataPagamento;
-  String status; // pendente, pago
-
-  ParcelaModel({
-    this.id,
-    required this.vendaId,
-    required this.numeroParcela,
-    required this.valor,
-    required this.dataVencimento,
-    this.dataPagamento,
-    required this.status,
-  });
+  String status;
 
   factory ParcelaModel.fromMap(Map<String, dynamic> map) {
     return ParcelaModel(
-      id: map['id'],
-      vendaId: map['venda_id'],
-      numeroParcela: map['numero_parcela'],
-      valor: (map['valor'] as num).toDouble(),
-      dataVencimento: DateTime.parse(map['data_vencimento']),
-      dataPagamento: map['data_pagamento'] != null ? DateTime.parse(map['data_pagamento']) : null,
-      status: map['status'],
+      localId: map['local_id']?.toString(),
+      id: map['id']?.toString(),
+      vendaId: map['venda_local_id']?.toString() ??
+          map['venda_id']?.toString() ??
+          '',
+      numeroParcela: (map['numero_parcela'] as num?)?.toInt() ?? 0,
+      valor: (map['valor'] as num?)?.toDouble() ?? 0,
+      dataVencimento: DateTime.parse(map['data_vencimento'].toString()),
+      dataPagamento: map['data_pagamento'] == null
+          ? null
+          : DateTime.parse(map['data_pagamento'].toString()),
+      status: map['status']?.toString() ?? 'pendente',
     );
   }
 

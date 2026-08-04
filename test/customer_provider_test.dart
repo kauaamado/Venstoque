@@ -152,15 +152,6 @@ void main() {
 
     expect(provider.customers.single.nome, 'Inserido fora do provider');
   });
-
-  test('insights e histórico permanecem locais e vazios nesta fase', () async {
-    final insights = await provider.getCustomerInsights('1');
-    await provider.loadCustomerHistory('1', 30);
-
-    expect(insights['totalComprado'], 0.0);
-    expect(insights['totalPendente'], 0.0);
-    expect(provider.customerHistory, isEmpty);
-  });
 }
 
 Future<void> _waitUntil(bool Function() condition) async {

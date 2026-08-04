@@ -77,7 +77,12 @@ class VenstoqueApp extends StatelessWidget {
             empresaId: _syncTestEmpresaId,
           ),
         ),
-        ChangeNotifierProvider(create: (_) => SaleProvider()),
+        ChangeNotifierProvider(
+          create: (_) => SaleProvider(
+            isar,
+            empresaId: _syncTestEmpresaId,
+          ),
+        ),
         Provider<SyncService>(
           create: (_) => SyncService(
             isar,

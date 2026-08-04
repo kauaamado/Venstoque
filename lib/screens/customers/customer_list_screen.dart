@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../providers/customer_provider.dart';
+import '../../providers/sale_provider.dart';
 import '../../models/cliente_model.dart';
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
@@ -38,28 +39,27 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<CustomerProvider>();
+    final saleProvider = context.watch<SaleProvider>();
     final customers = provider.customers;
 
-    // 1. APLICA A BARRA DE PESQUISA (Filtra a lista original)
-    List<ClienteModel> filteredCustomers = SearchHelper.filterList(
+    final filteredCustomers = SearchHelper.filterList(
       items: customers,
       query: _searchQuery,
-      searchBy: (c) => c.nome, // Diz pra função buscar pelo Nome do Cliente
-    );
+      searchBy: (customer) => customer.nome,
+    ).toList();
 
     double totalPendenteFor(ClienteModel c) {
       if (c.localId == null) return 0.0;
-      final insights = provider.getCachedInsights(c.localId!);
+      final insights = saleProvider.getCachedInsights(c.localId!);
       return (insights?['totalPendente'] as num?)?.toDouble() ?? 0.0;
     }
 
     double totalCompradoFor(ClienteModel c) {
       if (c.localId == null) return 0.0;
-      final insights = provider.getCachedInsights(c.localId!);
+      final insights = saleProvider.getCachedInsights(c.localId!);
       return (insights?['totalComprado'] as num?)?.toDouble() ?? 0.0;
     }
 
-    // 2. APLICA A ORDENAÇÃO NO RESULTADO DA PESQUISA
     if (_selectedFilter != null) {
       switch (_selectedFilter) {
         case 'Maiores Devedores':

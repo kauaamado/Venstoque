@@ -77,7 +77,9 @@ class _RegisterEntryScreenState extends State<RegisterEntryScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                key: ValueKey(_selectedCategory),
+                key: ValueKey(
+                  'entry-product-${_selectedCategory ?? 'unselected'}',
+                ),
                 initialValue: selectedProduct?.localId,
                 decoration: const InputDecoration(labelText: 'Produto'),
                 items: filteredProducts
@@ -138,7 +140,9 @@ class _RegisterEntryScreenState extends State<RegisterEntryScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                key: ValueKey(_selectedSupplier),
+                key: ValueKey(
+                  'entry-supplier-${_selectedSupplier ?? 'unselected'}',
+                ),
                 initialValue: _suppliers.contains(_selectedSupplier)
                     ? _selectedSupplier
                     : null,

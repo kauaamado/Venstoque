@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/cliente_model.dart';
-import '../../providers/customer_provider.dart';
+import '../../providers/sale_provider.dart';
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
 
@@ -46,7 +46,7 @@ class CustomerProfileScreen extends StatelessWidget {
             const SizedBox(height: 8),
             FutureBuilder<Map<String, dynamic>>(
               future: context
-                  .read<CustomerProvider>()
+                  .read<SaleProvider>()
                   .getCustomerInsights(customer.localId!),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -102,7 +102,7 @@ class CustomerProfileScreen extends StatelessWidget {
                 DropdownMenuItem(value: '365', child: Text('Últimos 12 meses')),
               ],
               onChanged: (value) {
-                context.read<CustomerProvider>().loadCustomerHistory(
+                context.read<SaleProvider>().loadCustomerHistory(
                       customer.localId!,
                       int.parse(value!),
                     );
@@ -110,7 +110,7 @@ class CustomerProfileScreen extends StatelessWidget {
               hint: const Text('Selecione o período'),
             ),
             const SizedBox(height: 16),
-            Consumer<CustomerProvider>(
+            Consumer<SaleProvider>(
               builder: (context, provider, _) {
                 if (provider.isLoadingHistory) {
                   return const Center(child: CircularProgressIndicator());
@@ -136,9 +136,9 @@ class CustomerProfileScreen extends StatelessWidget {
 
                     String valorTexto;
                     if (rawValor is num) {
-                      valorTexto = context
-                          .read<CustomerProvider>()
-                          .formatarPreco(rawValor);
+                      valorTexto = AppFormatters.formatCurrency(
+                        rawValor.toDouble(),
+                      );
                     } else {
                       valorTexto = rawValor.toString();
                     }

@@ -3,9 +3,10 @@ import 'package:provider/provider.dart';
 import '../../providers/customer_provider.dart';
 import '../../providers/stock_provider.dart';
 import '../../providers/sale_provider.dart';
+import '../../models/item_venda_model.dart';
 import '../../models/parcela_model.dart';
 import '../../models/cliente_model.dart';
-import '../../models/produto_model.dart'; // NOVO: Precisa importar o modelo do produto
+import '../../models/produto_model.dart';
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/custom_search_bar.dart';
@@ -20,8 +21,8 @@ class NewSaleScreen extends StatefulWidget {
 
 class _NewSaleScreenState extends State<NewSaleScreen> {
   int _currentStep = 0;
-  String _searchCustomerQuery = ''; 
-  String _searchProductQuery = ''; // NOVO: Variável da busca de produto
+  String _searchCustomerQuery = '';
+  String _searchProductQuery = '';
 
   @override
   void initState() {
@@ -43,8 +44,12 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         type: StepperType.horizontal,
         currentStep: _currentStep,
         onStepContinue: () {
-          if (_currentStep == 0 && saleProvider.selectedCustomer == null) return;
-          if (_currentStep == 1 && saleProvider.cart.isEmpty) return;
+          if (_currentStep == 0 && saleProvider.selectedCustomer == null) {
+            return;
+          }
+          if (_currentStep == 1 && saleProvider.cart.isEmpty) {
+            return;
+          }
           if (_currentStep < 2) {
             setState(() => _currentStep++);
           } else {
@@ -105,7 +110,6 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
             ],
           ),
         ),
-        
         CustomSearchBar(
           hintText: 'Buscar cliente pelo nome...',
           onChanged: (val) {
@@ -115,31 +119,34 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           },
         ),
         const SizedBox(height: 16),
-
         if (customers.isEmpty) ...[
-          const Text('Nenhum cliente cadastrado. Cadastre um cliente para prosseguir.'),
+          const Text(
+              'Nenhum cliente cadastrado. Cadastre um cliente para prosseguir.'),
         ] else if (filteredCustomers.isEmpty) ...[
-          const Text('Nenhum cliente encontrado com esse nome.', style: TextStyle(color: Colors.grey)),
+          const Text('Nenhum cliente encontrado com esse nome.',
+              style: TextStyle(color: Colors.grey)),
         ] else ...[
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: filteredCustomers.length, 
+            itemCount: filteredCustomers.length,
             itemBuilder: (context, index) {
-              final c = filteredCustomers[index]; 
+              final c = filteredCustomers[index];
               final isSelected = selected?.localId == c.localId;
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: isSelected ? AppColors.primary : Colors.grey.shade600,
+                    color:
+                        isSelected ? AppColors.primary : Colors.grey.shade600,
                     width: isSelected ? 2 : 1,
                   ),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   title: Text(
                     c.nome,
                     style: const TextStyle(
@@ -152,7 +159,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                     padding: const EdgeInsets.only(top: 4.0),
                     child: Text(
                       c.referencia.isEmpty ? c.celular : c.referencia,
-                      style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
+                      style:
+                          TextStyle(fontSize: 14, color: Colors.grey.shade400),
                     ),
                   ),
                   trailing: isSelected
@@ -172,7 +180,6 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     final products = context.watch<StockProvider>().products;
     final cart = context.watch<SaleProvider>().cart;
 
-    // NOVO: Aplica o filtro na lista de produtos
     final List<ProdutoModel> filteredProducts = SearchHelper.filterList(
       items: products,
       query: _searchProductQuery,
@@ -187,8 +194,6 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        
-        // NOVO: Barra de pesquisa de produtos (Substituiu o Dropdown)
         CustomSearchBar(
           hintText: 'Buscar produto...',
           onChanged: (val) {
@@ -198,8 +203,6 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           },
         ),
         const SizedBox(height: 8),
-
-        // NOVO: Lista de resultados da busca de produtos
         Container(
           constraints: const BoxConstraints(maxHeight: 220),
           decoration: BoxDecoration(
@@ -210,55 +213,49 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           child: filteredProducts.isEmpty
               ? const Padding(
                   padding: EdgeInsets.all(16.0),
-                  child: Text('Nenhum produto encontrado.', style: TextStyle(color: Colors.grey)),
+                  child: Text('Nenhum produto encontrado.',
+                      style: TextStyle(color: Colors.grey)),
                 )
               : ListView.separated(
                   shrinkWrap: true,
                   itemCount: filteredProducts.length,
-                  separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey.shade800),
+                  separatorBuilder: (_, __) =>
+                      Divider(height: 1, color: Colors.grey.shade800),
                   itemBuilder: (context, index) {
                     final prod = filteredProducts[index];
                     return ListTile(
-                      title: Text(prod.nome, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      title: Text(prod.nome,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
                       subtitle: Text(
                         'Estoque: ${prod.quantidadeEstoque}  •  ${AppFormatters.formatCurrency(prod.valorVenda)}',
-                        style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                        style: TextStyle(
+                            color: Colors.grey.shade400, fontSize: 13),
                       ),
-                      trailing: const Icon(Icons.add_shopping_cart, color: Colors.green),
+                      trailing: const Icon(Icons.add_shopping_cart,
+                          color: Colors.green),
                       onTap: () {
-                        if (prod.id == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Sincronize o produto antes de vender',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
                         context.read<SaleProvider>().addToCart(prod, 1);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('${prod.nome} adicionado ao carrinho!'),
-                            duration: const Duration(seconds: 1),
-                            backgroundColor: Colors.green,
-                          )
-                        );
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text('${prod.nome} adicionado ao carrinho!'),
+                          duration: const Duration(seconds: 1),
+                          backgroundColor: Colors.green,
+                        ));
                       },
                     );
                   },
                 ),
         ),
         const SizedBox(height: 24),
-
         const Text(
           'Carrinho de Compras:',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        
         if (cart.isEmpty)
-          const Text('O carrinho está vazio.', style: TextStyle(color: Colors.grey))
+          const Text('O carrinho está vazio.',
+              style: TextStyle(color: Colors.grey))
         else
           ListView.builder(
             shrinkWrap: true,
@@ -287,12 +284,13 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                     padding: const EdgeInsets.only(top: 4.0),
                     child: Text(
                       '${item.quantidade}x ${AppFormatters.formatCurrency(item.precoUnitario)}',
-                      style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
+                      style:
+                          TextStyle(fontSize: 14, color: Colors.grey.shade400),
                     ),
                   ),
                   trailing: IconButton(
-                    icon:
-                        const Icon(Icons.delete_outline, color: Colors.redAccent),
+                    icon: const Icon(Icons.delete_outline,
+                        color: Colors.redAccent),
                     onPressed: () =>
                         context.read<SaleProvider>().removeFromCart(index),
                   ),
@@ -304,7 +302,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         Text(
           'TOTAL: ${AppFormatters.formatCurrency(context.watch<SaleProvider>().total)}',
           style: const TextStyle(
-              fontSize: 20, fontWeight: FontWeight.bold, color: Colors.greenAccent),
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.greenAccent),
         ),
         const SizedBox(height: 16),
       ],
@@ -313,35 +313,39 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   Widget _buildPaymentStep() {
     final type = context.watch<SaleProvider>().paymentType;
-    return Column(
-      children: [
-        RadioListTile(
-          title: const Text('À Vista', style: TextStyle(color: Colors.white)),
-          value: 'a_vista',
-          groupValue: type,
-          activeColor: AppColors.primary,
-          onChanged: (v) => context.read<SaleProvider>().setPaymentType(v!),
-        ),
-        RadioListTile(
-          title: const Text('Fiado / Pendente',
-              style: TextStyle(color: Colors.white)),
-          value: 'fiado',
-          groupValue: type,
-          activeColor: AppColors.primary,
-          onChanged: (v) => context.read<SaleProvider>().setPaymentType(v!),
-        ),
-        RadioListTile(
-          title: const Text('Parcelado', style: TextStyle(color: Colors.white)),
-          value: 'parcelado',
-          groupValue: type,
-          activeColor: AppColors.primary,
-          onChanged: (v) => context.read<SaleProvider>().setPaymentType(v!),
-        ),
-      ],
+    return RadioGroup<String>(
+      groupValue: type,
+      onChanged: (value) {
+        if (value != null) {
+          context.read<SaleProvider>().setPaymentType(value);
+        }
+      },
+      child: const Column(
+        children: [
+          RadioListTile(
+            title: Text('À Vista', style: TextStyle(color: Colors.white)),
+            value: 'a_vista',
+            activeColor: AppColors.primary,
+          ),
+          RadioListTile(
+            title: Text(
+              'Fiado / Pendente',
+              style: TextStyle(color: Colors.white),
+            ),
+            value: 'fiado',
+            activeColor: AppColors.primary,
+          ),
+          RadioListTile(
+            title: Text('Parcelado', style: TextStyle(color: Colors.white)),
+            value: 'parcelado',
+            activeColor: AppColors.primary,
+          ),
+        ],
+      ),
     );
   }
 
-  void _finalize() async {
+  Future<void> _finalize() async {
     final saleProvider = context.read<SaleProvider>();
     int parcelasCount = 1;
 
@@ -355,12 +359,12 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         helpText: 'Selecione a Data do 1º Vencimento',
       );
 
-      if (selectedDate == null) return;
+      if (selectedDate == null || !mounted) return;
 
       if (saleProvider.paymentType == 'parcelado') {
         final result = await showDialog<int>(
           context: context,
-          barrierDismissible: false, 
+          barrierDismissible: false,
           builder: (context) {
             int count = 1;
             return AlertDialog(
@@ -369,25 +373,29 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                 keyboardType: TextInputType.number,
                 onChanged: (value) => count = int.tryParse(value) ?? 1,
                 decoration: const InputDecoration(hintText: 'Ex: 3'),
-                style: const TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
+                style:
+                    const TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, null),
-                  child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+                  child: const Text('Cancelar',
+                      style: TextStyle(color: Colors.grey)),
                 ),
                 ElevatedButton(
                   onPressed: () => Navigator.pop(context, count),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                  child: const Text('OK', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary),
+                  child:
+                      const Text('OK', style: TextStyle(color: Colors.white)),
                 ),
               ],
             );
           },
         );
 
-        if (result == null) return; 
-        
+        if (result == null || result <= 0 || !mounted) return;
+
         parcelasCount = result;
       }
 
@@ -407,18 +415,21 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         ));
       }
 
-      _executeSale(saleProvider, parcelas);
+      await _executeSale(saleProvider, parcelas);
     } else {
-      _executeSale(saleProvider, null);
+      await _executeSale(saleProvider, null);
     }
   }
 
-  void _executeSale(SaleProvider provider, List<ParcelaModel>? parcelas) async {
+  Future<void> _executeSale(
+    SaleProvider provider,
+    List<ParcelaModel>? parcelas,
+  ) async {
     final customer = provider.selectedCustomer;
-    final cartItems = List.from(provider.cart);
+    final cartItems = List<ItemVendaModel>.from(provider.cart);
     final totalVenda = provider.total;
     final tipoPagamento = provider.paymentType;
-    final String telefoneCliente = (customer as dynamic)?.celular ?? '';
+    final telefoneCliente = customer?.celular ?? '';
 
     showDialog(
       context: context,
@@ -464,17 +475,14 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
       mensagem += '💳 *Pagamento:* $formaPagamentoStr\n';
       if (vencimentoStr.isNotEmpty) {
-        mensagem += '$vencimentoStr';
+        mensagem += vencimentoStr;
       }
 
       mensagem += '\nAgradecemos a preferência! Volte sempre. 🤝';
 
       if (mounted) {
-        Navigator.pop(context); 
-        setState(() => _currentStep = 0); 
-
-        await context.read<CustomerProvider>().loadCustomers();
-        await context.read<StockProvider>().loadProducts();
+        Navigator.pop(context);
+        setState(() => _currentStep = 0);
 
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('✅ Venda salva no sistema!'),
@@ -544,7 +552,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                       try {
                         await WhatsAppHelper.sendMessage(
                             numeroParaEnviar, mensagem);
+                        if (!mounted) return;
                       } catch (e) {
+                        if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                           content:
                               Text('Não foi possível abrir o WhatsApp: $e'),

@@ -49,18 +49,18 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
       ..removeWhere((category) => category.isEmpty);
     final sortedCategories = categories.toList()..sort();
 
-    var processedProducts = SearchHelper.filterList(
+    final searchedProducts = SearchHelper.filterList(
       items: products,
       query: _searchQuery,
       searchBy: (product) => '${product.nome} ${product.categoria}',
     );
-
-    if (_selectedCategory != null && _selectedCategory != 'Todas') {
-      processedProducts = processedProducts
-          .where((product) => product.categoria == _selectedCategory)
-          .toList();
-    }
-    _sortProducts(processedProducts);
+    final filteredProducts = searchedProducts.where(
+      (product) =>
+          _selectedCategory == null ||
+          _selectedCategory == 'Todas' ||
+          product.categoria == _selectedCategory,
+    );
+    final processedProducts = _sortProducts(filteredProducts);
 
     return Scaffold(
       appBar: AppBar(
@@ -285,8 +285,9 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
     );
   }
 
-  void _sortProducts(List<ProdutoModel> products) {
-    products.sort((first, second) {
+  List<ProdutoModel> _sortProducts(Iterable<ProdutoModel> products) {
+    final sortedProducts = products.toList();
+    sortedProducts.sort((first, second) {
       switch (_selectedFilter) {
         case 'Preço de Custo (Crescente)':
           return first.precoCusto.compareTo(second.precoCusto);
@@ -306,6 +307,7 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
               );
       }
     });
+    return sortedProducts;
   }
 
   InputDecoration _dropdownDecoration() {
