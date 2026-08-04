@@ -65,7 +65,12 @@ class VenstoqueApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => CustomerProvider()),
+        ChangeNotifierProvider(
+          create: (_) => CustomerProvider(
+            isar,
+            empresaId: _syncTestEmpresaId,
+          ),
+        ),
         ChangeNotifierProvider(create: (_) => StockProvider()),
         ChangeNotifierProvider(create: (_) => SaleProvider()),
         Provider<SyncService>(

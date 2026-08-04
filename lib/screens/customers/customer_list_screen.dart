@@ -47,15 +47,15 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
       searchBy: (c) => c.nome, // Diz pra função buscar pelo Nome do Cliente
     );
 
-    double _totalPendente(ClienteModel c) {
-      if (c.id == null) return 0.0;
-      final insights = provider.getCachedInsights(c.id!);
+    double totalPendenteFor(ClienteModel c) {
+      if (c.localId == null) return 0.0;
+      final insights = provider.getCachedInsights(c.localId!);
       return (insights?['totalPendente'] as num?)?.toDouble() ?? 0.0;
     }
 
-    double _totalComprado(ClienteModel c) {
-      if (c.id == null) return 0.0;
-      final insights = provider.getCachedInsights(c.id!);
+    double totalCompradoFor(ClienteModel c) {
+      if (c.localId == null) return 0.0;
+      final insights = provider.getCachedInsights(c.localId!);
       return (insights?['totalComprado'] as num?)?.toDouble() ?? 0.0;
     }
 
@@ -64,22 +64,22 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
       switch (_selectedFilter) {
         case 'Maiores Devedores':
           filteredCustomers.sort(
-            (a, b) => _totalPendente(b).compareTo(_totalPendente(a)),
+            (a, b) => totalPendenteFor(b).compareTo(totalPendenteFor(a)),
           );
           break;
         case 'Menores Devedores':
           filteredCustomers.sort(
-            (a, b) => _totalPendente(a).compareTo(_totalPendente(b)),
+            (a, b) => totalPendenteFor(a).compareTo(totalPendenteFor(b)),
           );
           break;
         case 'Maiores Compradores':
           filteredCustomers.sort(
-            (a, b) => _totalComprado(b).compareTo(_totalComprado(a)),
+            (a, b) => totalCompradoFor(b).compareTo(totalCompradoFor(a)),
           );
           break;
         case 'Menores Compradores':
           filteredCustomers.sort(
-            (a, b) => _totalComprado(a).compareTo(_totalComprado(b)),
+            (a, b) => totalCompradoFor(a).compareTo(totalCompradoFor(b)),
           );
           break;
       }
@@ -110,7 +110,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      
+
                       const Text(
                         'Filtrar Clientes',
                         style: TextStyle(
@@ -129,7 +129,9 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                             horizontal: 16,
                           ),
                         ),
-                        value: _filterOptions.contains(_selectedFilter) ? _selectedFilter : null,
+                        initialValue: _filterOptions.contains(_selectedFilter)
+                            ? _selectedFilter
+                            : null,
                         items: _filterOptions
                             .map(
                               (filter) => DropdownMenuItem(
@@ -158,12 +160,13 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                           ),
                         )
                       : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 0),
                           itemCount: filteredCustomers.length,
                           itemBuilder: (context, index) {
                             final c = filteredCustomers[index];
-                            final totalComprado = _totalComprado(c);
-                            final totalPendente = _totalPendente(c);
+                            final totalComprado = totalCompradoFor(c);
+                            final totalPendente = totalPendenteFor(c);
 
                             return Card(
                               color: AppColors.surface,
@@ -176,7 +179,8 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) => CustomerProfileScreen(customer: c),
+                                      builder: (_) =>
+                                          CustomerProfileScreen(customer: c),
                                     ),
                                   );
                                 },
@@ -195,7 +199,9 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                     const SizedBox(width: 8),
                                     Flexible(
                                       child: Text(
-                                        c.bairro,
+                                        c.referencia.isEmpty
+                                            ? c.celular
+                                            : c.referencia,
                                         style: const TextStyle(
                                           color: AppColors.textSecondary,
                                           fontSize: 12,
@@ -230,11 +236,20 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     IconButton(
-                                      icon: const Icon(Icons.edit, color: Colors.blue),
+                                      icon: const Icon(Icons.edit,
+                                          color: Colors.blue),
                                       onPressed: () => _showEditDialog(c),
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.message, color: Colors.green),
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        color: Colors.redAccent,
+                                      ),
+                                      onPressed: () => _confirmDelete(c),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.message,
+                                          color: Colors.green),
                                       onPressed: () => _openWhatsApp(c.celular),
                                     ),
                                   ],
@@ -264,10 +279,8 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
   void _showAddDialog(BuildContext context) {
     final nomeController = TextEditingController();
     final phoneController = TextEditingController();
-    final bairroController = TextEditingController();
     final referenciaController = TextEditingController();
-    final referenciaNomeController = TextEditingController();
-    final referenciaTelefoneController = TextEditingController();
+    final observacoesController = TextEditingController();
 
     showDialog(
       context: context,
@@ -290,19 +303,14 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                   decoration:
                       const InputDecoration(labelText: 'Celular (com DDD)')),
               TextField(
-                  controller: bairroController,
-                  decoration: const InputDecoration(labelText: 'Bairro')),
-              const Divider(height: 32, thickness: 1),
-              const Icon(Icons.person_outline, size: 32, color: Colors.grey),
-              const SizedBox(height: 16),
+                controller: referenciaController,
+                decoration: const InputDecoration(labelText: 'Referência'),
+              ),
               TextField(
-                  controller: referenciaNomeController,
-                  decoration:
-                      const InputDecoration(labelText: 'Nome da Referência')),
-              TextField(
-                  controller: referenciaTelefoneController,
-                  decoration: const InputDecoration(
-                      labelText: 'Telefone da Referência')),
+                controller: observacoesController,
+                decoration: const InputDecoration(labelText: 'Observações'),
+                maxLines: 3,
+              ),
               const SizedBox(height: 16),
             ],
           ),
@@ -310,19 +318,26 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar', style: TextStyle(color: Colors.grey))),
+              child:
+                  const Text('Cancelar', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               final c = ClienteModel(
                 nome: nomeController.text,
                 celular: phoneController.text,
                 referencia: referenciaController.text,
-                bairro: bairroController.text,
-                nomeReferencia: referenciaNomeController.text,
-                telefoneReferencia: referenciaTelefoneController.text,
+                observacoes: observacoesController.text,
               );
-              context.read<CustomerProvider>().addCustomer(c);
-              Navigator.pop(context);
+              try {
+                await context.read<CustomerProvider>().addCustomer(c);
+                if (!context.mounted) return;
+                Navigator.pop(context);
+              } catch (error) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Erro ao salvar cliente: $error')),
+                );
+              }
             },
             child: const Text('Salvar'),
           ),
@@ -334,13 +349,10 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
   void _showEditDialog(ClienteModel cliente) {
     final nomeController = TextEditingController(text: cliente.nome);
     final phoneController = TextEditingController(text: cliente.celular);
-    final bairroController = TextEditingController(text: cliente.bairro);
     final referenciaController =
         TextEditingController(text: cliente.referencia);
-    final referenciaNomeController =
-        TextEditingController(text: cliente.nomeReferencia);
-    final referenciaTelefoneController =
-        TextEditingController(text: cliente.telefoneReferencia);
+    final observacoesController =
+        TextEditingController(text: cliente.observacoes);
 
     showDialog(
       context: context,
@@ -359,19 +371,14 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                   decoration:
                       const InputDecoration(labelText: 'Celular (com DDD)')),
               TextField(
-                  controller: bairroController,
-                  decoration: const InputDecoration(labelText: 'Bairro')),
-              const Divider(height: 32, thickness: 1),
-              const Icon(Icons.person_outline, size: 32, color: Colors.grey),
-              const SizedBox(height: 16),
+                controller: referenciaController,
+                decoration: const InputDecoration(labelText: 'Referência'),
+              ),
               TextField(
-                  controller: referenciaNomeController,
-                  decoration:
-                      const InputDecoration(labelText: 'Nome da Referência')),
-              TextField(
-                  controller: referenciaTelefoneController,
-                  decoration: const InputDecoration(
-                      labelText: 'Telefone da Referência')),
+                controller: observacoesController,
+                decoration: const InputDecoration(labelText: 'Observações'),
+                maxLines: 3,
+              ),
               const SizedBox(height: 16),
             ],
           ),
@@ -379,30 +386,79 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar', style: TextStyle(color: Colors.grey))),
+              child:
+                  const Text('Cancelar', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
-            onPressed: () {
-              // Atenção: Aqui é recomendável usar um updateCustomer no Provider 
-              // em vez de addCustomer para não duplicar o cliente.
+            onPressed: () async {
               final c = ClienteModel(
-                id: cliente.id, // Preserva o ID original para atualizar
+                localId: cliente.localId,
+                id: cliente.id,
                 nome: nomeController.text,
                 celular: phoneController.text,
                 referencia: referenciaController.text,
-                bairro: bairroController.text,
-                nomeReferencia: referenciaNomeController.text,
-                telefoneReferencia: referenciaTelefoneController.text,
+                observacoes: observacoesController.text,
+                ativo: cliente.ativo,
+                legacyId: cliente.legacyId,
               );
-              
-              // Verifique se você tem uma função updateCustomer no seu CustomerProvider
-              // Se não tiver, o ideal é criar para ele dar um UPDATE no banco e não um INSERT.
-              context.read<CustomerProvider>().addCustomer(c); 
-              Navigator.pop(context);
+
+              try {
+                await context.read<CustomerProvider>().updateCustomer(c);
+                if (!context.mounted) return;
+                Navigator.pop(context);
+              } catch (error) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Erro ao atualizar cliente: $error')),
+                );
+              }
             },
             child: const Text('Salvar Alterações'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _confirmDelete(ClienteModel cliente) async {
+    final localId = cliente.localId;
+    if (localId == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remover cliente'),
+        content: Text(
+          'Deseja remover ${cliente.nome}? Clientes com vendas serão apenas desativados.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Remover'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final result =
+          await context.read<CustomerProvider>().deleteCustomer(localId);
+      if (!mounted) return;
+      final message = result == CustomerDeleteResult.deactivated
+          ? 'Cliente desativado porque possui vendas.'
+          : 'Cliente removido.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao remover cliente: $error')),
+      );
+    }
   }
 }

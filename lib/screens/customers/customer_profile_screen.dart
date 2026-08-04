@@ -29,15 +29,15 @@ class CustomerProfileScreen extends StatelessWidget {
             const SizedBox(height: 8),
             Text('Nome: ${customer.nome}'),
             Text('Telefone: ${customer.celular}'),
-            Text('Bairro: ${customer.bairro}'),
+            Text(
+                'Referência: ${customer.referencia.isEmpty ? "-" : customer.referencia}'),
             const Divider(),
             const Text(
-              'Referência',
+              'Observações',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            Text('Nome: ${customer.nomeReferencia ?? "-"}'),
-            Text('Telefone: ${customer.telefoneReferencia ?? "-"}'),
+            Text(customer.observacoes.isEmpty ? '-' : customer.observacoes),
             const Divider(),
             const Text(
               'Insights',
@@ -47,7 +47,7 @@ class CustomerProfileScreen extends StatelessWidget {
             FutureBuilder<Map<String, dynamic>>(
               future: context
                   .read<CustomerProvider>()
-                  .getCustomerInsights(customer.id!),
+                  .getCustomerInsights(customer.localId!),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -102,9 +102,10 @@ class CustomerProfileScreen extends StatelessWidget {
                 DropdownMenuItem(value: '365', child: Text('Últimos 12 meses')),
               ],
               onChanged: (value) {
-                context
-                    .read<CustomerProvider>()
-                    .loadCustomerHistory(customer.id!, int.parse(value!));
+                context.read<CustomerProvider>().loadCustomerHistory(
+                      customer.localId!,
+                      int.parse(value!),
+                    );
               },
               hint: const Text('Selecione o período'),
             ),
@@ -119,8 +120,9 @@ class CustomerProfileScreen extends StatelessWidget {
                 if (provider.customerHistory.isEmpty) {
                   return const Padding(
                     padding: EdgeInsets.symmetric(vertical: 16.0),
-                    child: Text('Nenhum histórico encontrado para este período.', 
-                                style: TextStyle(color: Colors.grey)),
+                    child: Text(
+                        'Nenhum histórico encontrado para este período.',
+                        style: TextStyle(color: Colors.grey)),
                   );
                 }
 
@@ -131,7 +133,7 @@ class CustomerProfileScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final history = provider.customerHistory[index];
                     final rawValor = history['valor'];
-                    
+
                     String valorTexto;
                     if (rawValor is num) {
                       valorTexto = context
@@ -141,13 +143,13 @@ class CustomerProfileScreen extends StatelessWidget {
                       valorTexto = rawValor.toString();
                     }
 
-                    final rawParcelas = history['numero_parcela']; 
-                    final int? numParcelas = (rawParcelas is num) 
-                        ? rawParcelas.toInt() 
+                    final rawParcelas = history['numero_parcela'];
+                    final int? numParcelas = (rawParcelas is num)
+                        ? rawParcelas.toInt()
                         : int.tryParse(rawParcelas?.toString() ?? '');
-                    
+
                     if (numParcelas != null && numParcelas > 1) {
-                      valorTexto = '$valorTexto em ${numParcelas}x'; 
+                      valorTexto = '$valorTexto em ${numParcelas}x';
                     }
 
                     return ListTile(
@@ -168,7 +170,11 @@ class CustomerProfileScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            history['tipo_pagamento']?.toString().toUpperCase().replaceAll('_', ' ') ?? '-',
+                            history['tipo_pagamento']
+                                    ?.toString()
+                                    .toUpperCase()
+                                    .replaceAll('_', ' ') ??
+                                '-',
                             style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,

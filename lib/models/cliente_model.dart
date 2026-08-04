@@ -1,31 +1,34 @@
 class ClienteModel {
-  final String? id;
-  final String nome;
-  final String celular;
-  final String referencia;
-  final String bairro;
-  final String? nomeReferencia;
-  final String? telefoneReferencia;
-
-  ClienteModel({
+  const ClienteModel({
+    this.localId,
     this.id,
     required this.nome,
     required this.celular,
     required this.referencia,
-    required this.bairro,
-    this.nomeReferencia,
-    this.telefoneReferencia,
+    required this.observacoes,
+    this.ativo = true,
+    this.legacyId,
   });
+
+  final String? localId;
+  final String? id;
+  final String nome;
+  final String celular;
+  final String referencia;
+  final String observacoes;
+  final bool ativo;
+  final int? legacyId;
 
   factory ClienteModel.fromMap(Map<String, dynamic> map) {
     return ClienteModel(
-      id: map['id'],
-      nome: map['nome'],
-      celular: map['celular'],
-      referencia: map['referencia'] ?? '',
-      bairro: map['bairro'] ?? '',
-      nomeReferencia: map['nome_referencia'],
-      telefoneReferencia: map['telefone_referencia'],
+      localId: map['local_id']?.toString(),
+      id: map['id']?.toString(),
+      nome: map['nome']?.toString() ?? '',
+      celular: map['celular']?.toString() ?? '',
+      referencia: map['referencia']?.toString() ?? '',
+      observacoes: map['observacoes']?.toString() ?? '',
+      ativo: map['ativo'] as bool? ?? true,
+      legacyId: (map['legacy_id'] as num?)?.toInt(),
     );
   }
 
@@ -35,9 +38,9 @@ class ClienteModel {
       'nome': nome,
       'celular': celular,
       'referencia': referencia,
-      'bairro': bairro,
-      'nome_referencia': nomeReferencia,
-      'telefone_referencia': telefoneReferencia,
+      'observacoes': observacoes,
+      'ativo': ativo,
+      'legacy_id': legacyId,
     };
   }
 }

@@ -127,7 +127,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
             itemCount: filteredCustomers.length, 
             itemBuilder: (context, index) {
               final c = filteredCustomers[index]; 
-              final isSelected = selected?.id == c.id;
+              final isSelected = selected?.localId == c.localId;
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -151,7 +151,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                   subtitle: Padding(
                     padding: const EdgeInsets.only(top: 4.0),
                     child: Text(
-                      c.bairro,
+                      c.referencia.isEmpty ? c.celular : c.referencia,
                       style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
                     ),
                   ),

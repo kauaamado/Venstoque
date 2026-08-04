@@ -1,191 +1,156 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:isar_community/isar.dart';
+
 import '../models/cliente_model.dart';
-import '../services/supabase_service.dart';
-import '../utils/constants.dart';
+import '../models/local/cliente_model.dart';
+import '../models/local/venda_model.dart';
 import '../utils/formatters.dart';
 
+enum CustomerDeleteResult { deleted, deactivated }
+
 class CustomerProvider with ChangeNotifier {
-  List<ClienteModel> _customers = [];
-  bool _isLoading = false;
-
-  List<ClienteModel> get customers => _customers;
-  bool get isLoading => _isLoading;
-
-  final _client = SupabaseService().client;
-
-  // Cache de insights por cliente (total comprado, pendente, etc.)
-  Map<String, Map<String, dynamic>>? _customerInsightsCache;
-
-  Map<String, Map<String, dynamic>> _ensureInsightsCache() {
-    // Garante que o cache sempre exista, mesmo após hot reload
-    var cache = _customerInsightsCache;
-    if (cache == null) {
-      cache = <String, Map<String, dynamic>>{};
-      _customerInsightsCache = cache;
+  CustomerProvider(this._isar, {required String empresaId})
+      : _empresaId = empresaId.trim() {
+    if (_empresaId.isEmpty) {
+      throw ArgumentError.value(
+        empresaId,
+        'empresaId',
+        'O identificador da empresa não pode ser vazio.',
+      );
     }
-    return cache;
+
+    _customerSubscription =
+        _isar.clienteLocals.watchLazy(fireImmediately: true).listen(
+              (_) => unawaited(_refreshFromWatcher()),
+              onError: _handleWatcherError,
+            );
   }
 
+  final Isar _isar;
+  final String _empresaId;
+  late final StreamSubscription<void> _customerSubscription;
+
+  List<ClienteModel> _customers = [];
+  bool _isLoading = false;
+  bool _isLoadingHistory = false;
+  bool _isDisposed = false;
+  int _refreshVersion = 0;
+  String? _errorMessage;
+  List<Map<String, dynamic>> _customerHistory = [];
+  final Map<String, Map<String, dynamic>> _customerInsightsCache = {};
+
+  List<ClienteModel> get customers => List.unmodifiable(_customers);
+  bool get isLoading => _isLoading;
+  bool get isLoadingHistory => _isLoadingHistory;
+  String? get errorMessage => _errorMessage;
+  List<Map<String, dynamic>> get customerHistory =>
+      List.unmodifiable(_customerHistory);
   Map<String, Map<String, dynamic>> get customerInsightsCache =>
-      _ensureInsightsCache();
+      Map.unmodifiable(_customerInsightsCache);
 
   Map<String, dynamic>? getCachedInsights(String customerId) {
-    final cache = _ensureInsightsCache();
-    return cache[customerId];
+    return _customerInsightsCache[customerId];
   }
 
   Future<void> loadCustomers() async {
-    _isLoading = true;
-    notifyListeners();
+    _setLoading(true);
     try {
-      final res = await _client.from(AppTables.clientes).select().order('nome');
-      _customers = (res as List).map((c) => ClienteModel.fromMap(c)).toList();
-
-      // Pré-carrega insights básicos de todos os clientes (importante para telas críticas)
-      for (final c in _customers) {
-        if (c.id != null) {
-          await getCustomerInsights(c.id!);
-        }
-      }
-    } catch (e) {
-      debugPrint(e.toString());
+      await _refreshCustomers();
+      _errorMessage = null;
+    } catch (error, stackTrace) {
+      _recordError('Erro ao carregar clientes locais', error, stackTrace);
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      _setLoading(false);
     }
   }
 
   Future<void> addCustomer(ClienteModel cliente) async {
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      await _client.from(AppTables.clientes).insert(cliente.toMap());
-      await loadCustomers(); // Recarrega a lista
-    } catch (e) {
-      debugPrint('Erro ao salvar cliente: $e');
-      // Aqui no futuro você pode colocar um aviso de "Sem internet"
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+    if (cliente.localId != null) {
+      await updateCustomer(cliente);
+      return;
     }
+
+    await _runMutation('Erro ao salvar cliente local', () async {
+      final local = ClienteLocal()
+        ..supabaseId = null
+        ..empresaId = _empresaId;
+      _applyModel(local, cliente);
+
+      await _isar.writeTxn(() => _isar.clienteLocals.put(local));
+    });
   }
 
-  List<Map<String, dynamic>> _customerHistory = [];
-  bool _isLoadingHistory = false;
+  Future<void> updateCustomer(ClienteModel cliente) async {
+    final localId = _requiredLocalId(cliente.localId);
 
-  List<Map<String, dynamic>> get customerHistory => _customerHistory;
-  bool get isLoadingHistory => _isLoadingHistory;
+    await _runMutation('Erro ao atualizar cliente local', () async {
+      await _isar.writeTxn(() async {
+        final current = await _isar.clienteLocals.get(localId);
+        if (current == null || !_canUseTenant(current.empresaId)) {
+          throw StateError('Cliente local não encontrado.');
+        }
+
+        _applyModel(current, cliente);
+        current.empresaId ??= _empresaId;
+        await _isar.clienteLocals.put(current);
+      });
+    });
+  }
+
+  Future<CustomerDeleteResult> deleteCustomer(String customerId) async {
+    final localId = _requiredLocalId(customerId);
+    late CustomerDeleteResult result;
+
+    await _runMutation('Erro ao remover cliente local', () async {
+      final linkedSales = await _isar.vendaLocals
+          .filter()
+          .cliente((query) => query.idEqualTo(localId))
+          .count();
+
+      await _isar.writeTxn(() async {
+        final current = await _isar.clienteLocals.get(localId);
+        if (current == null || !_canUseTenant(current.empresaId)) {
+          throw StateError('Cliente local não encontrado.');
+        }
+
+        if (linkedSales > 0) {
+          current.ativo = false;
+          await _isar.clienteLocals.put(current);
+          result = CustomerDeleteResult.deactivated;
+        } else {
+          await _isar.clienteLocals.delete(localId);
+          result = CustomerDeleteResult.deleted;
+        }
+      });
+
+      _customerInsightsCache.remove(customerId);
+    });
+
+    return result;
+  }
 
   Future<Map<String, dynamic>> getCustomerInsights(String customerId) async {
-    final cache = _ensureInsightsCache();
-    try {
-      final vendas = await _client
-          .from(AppTables.vendas)
-          .select(
-              'id, tipo_pagamento, valor_total, data_venda, itens_venda(produto_id, quantidade), parcelas(data_vencimento, status, valor)')
-          .eq('cliente_id', customerId);
-
-      double totalComprado = 0;
-      double totalPendente = 0;
-      int totalAtrasos = 0;
-      Map<String, int> tipoMaisComprado = {};
-      Map<String, int> tipoPagamentoMaisUsado = {};
-
-      double _toDouble(dynamic v) =>
-          (v is num) ? v.toDouble() : (double.tryParse(v?.toString() ?? '') ?? 0.0);
-      int _toInt(dynamic v) =>
-          (v is int) ? v : (v is num) ? v.toInt() : (int.tryParse(v?.toString() ?? '') ?? 0);
-
-      for (var venda in vendas) {
-        totalComprado += _toDouble(venda['valor_total']);
-
-        final parcelas = venda['parcelas'] is List ? venda['parcelas'] as List : <dynamic>[];
-        for (var parcela in parcelas) {
-          final rawVenc = parcela['data_vencimento'];
-          DateTime? dataVencimento;
-          if (rawVenc != null && rawVenc.toString().isNotEmpty) {
-            try {
-              dataVencimento = DateTime.parse(rawVenc.toString());
-            } catch (_) {}
-          }
-          final status = parcela['status']?.toString() ?? '';
-
-          if (status != 'pago') {
-            totalPendente += _toDouble(parcela['valor']);
-          }
-          if (dataVencimento != null &&
-              status != 'pago' &&
-              dataVencimento.isBefore(DateTime.now())) {
-            totalAtrasos++;
-          }
-        }
-
-        final itensVenda = venda['itens_venda'] is List ? venda['itens_venda'] as List : <dynamic>[];
-        for (var item in itensVenda) {
-          final produtoId = item['produto_id'];
-          if (produtoId == null) continue;
-          final quantidade = _toInt(item['quantidade']);
-
-          try {
-            final produto = await _client
-                .from(AppTables.produtos)
-                .select('tipo')
-                .eq('id', produtoId)
-                .single();
-            final tipo = produto['tipo']?.toString() ?? '-';
-            tipoMaisComprado[tipo] = (tipoMaisComprado[tipo] ?? 0) + quantidade;
-          } catch (_) {}
-        }
-
-        final tipoPagamento = venda['tipo_pagamento']?.toString() ?? '';
-        final tipoPagamentoFormatado = _formatarTipoPagamento(tipoPagamento);
-        tipoPagamentoMaisUsado[tipoPagamentoFormatado] =
-            (tipoPagamentoMaisUsado[tipoPagamentoFormatado] ?? 0) + 1;
-      }
-
-      final tipoMaisCompradoFinal = tipoMaisComprado.isNotEmpty
-          ? tipoMaisComprado.entries
-              .reduce((a, b) => a.value > b.value ? a : b)
-              .key
-          : '-';
-
-      final tipoPagamentoMaisUsadoFinal = tipoPagamentoMaisUsado.isNotEmpty
-          ? tipoPagamentoMaisUsado.entries
-              .reduce((a, b) => a.value > b.value ? a : b)
-              .key
-          : '-';
-      final result = {
-        'totalComprado': totalComprado,
-        'tipoMaisComprado': tipoMaisCompradoFinal,
-        'tipoPagamentoMaisUsado': tipoPagamentoMaisUsadoFinal,
-        'totalPendente': totalPendente,
-        'totalAtrasos': totalAtrasos,
-      };
-      cache[customerId] = result;
-      return result;
-    } catch (e) {
-      debugPrint('Erro ao carregar insights do cliente: $e');
-      return {
-        'totalComprado': 0.0,
-        'tipoMaisComprado': '-',
-        'tipoPagamentoMaisUsado': '-',
-        'totalPendente': 0.0,
-        'totalAtrasos': 0,
-      };
-    }
+    final result = <String, dynamic>{
+      'totalComprado': 0.0,
+      'tipoMaisComprado': '-',
+      'tipoPagamentoMaisUsado': '-',
+      'totalPendente': 0.0,
+      'totalAtrasos': 0,
+    };
+    _customerInsightsCache[customerId] = result;
+    return result;
   }
 
-  String _formatarTipoPagamento(String tipoPagamento) {
-    switch (tipoPagamento) {
-      case 'a_vista':
-        return 'À vista';
-      case 'fiado':
-        return 'Fiado';
-      case 'parcelado':
-        return 'Parcelado';
-      default:
-        return tipoPagamento;
+  Future<void> loadCustomerHistory(String customerId, int days) async {
+    _isLoadingHistory = true;
+    _notifyListeners();
+    try {
+      _customerHistory = [];
+    } finally {
+      _isLoadingHistory = false;
+      _notifyListeners();
     }
   }
 
@@ -193,82 +158,138 @@ class CustomerProvider with ChangeNotifier {
     return AppFormatters.formatCurrency(preco.toDouble());
   }
 
-  Future<void> loadCustomerHistory(String customerId, int days) async {
-    _isLoadingHistory = true;
-    notifyListeners();
+  Future<void> _runMutation(
+    String errorMessage,
+    Future<void> Function() operation,
+  ) async {
+    _setLoading(true);
     try {
-      // 1. A query agora garante que está puxando a coluna numero_parcela
-      final vendas = await _client
-          .from(AppTables.vendas)
-          .select(
-              'id, data_venda, valor_total, tipo_pagamento, parcelas(numero_parcela), itens_venda(produto_id, quantidade)')
-          .eq('cliente_id', customerId)
-          .gte('data_venda',
-              DateTime.now().subtract(Duration(days: days)).toIso8601String())
-          .order('data_venda', ascending: false);
-
-      final List<Map<String, dynamic>> history = [];
-
-      for (var venda in (vendas as List)) {
-        
-        // --- LÓGICA À PROVA DE BALAS PARA PARCELAS ---
-        int numParcelas = 1;
-        final parcelasList = venda['parcelas'] as List?;
-        
-        if (parcelasList != null && parcelasList.isNotEmpty) {
-          int maxParcelaBanco = 1;
-          
-          // Varre as parcelas e procura o maior número salvo na coluna 'numero_parcela'
-          for (var p in parcelasList) {
-            final n = p['numero_parcela'];
-            if (n != null) {
-              int parsedN = (n is num) ? n.toInt() : int.tryParse(n.toString()) ?? 1;
-              if (parsedN > maxParcelaBanco) {
-                maxParcelaBanco = parsedN;
-              }
-            }
-          }
-          
-          // Pega o maior valor entre o "tamanho da lista" (vendas novas) e o "maior número salvo" (vendas antigas)
-          numParcelas = maxParcelaBanco > parcelasList.length ? maxParcelaBanco : parcelasList.length;
-        }
-        // ----------------------------------------------
-
-        final itensList = venda['itens_venda'] as List?;
-        if (itensList != null) {
-          for (var item in itensList) {
-            final produtoId = item['produto_id'];
-            
-            String nomeProduto = 'Produto Indisponível';
-            if (produtoId != null) {
-              try {
-                final produto = await _client
-                    .from(AppTables.produtos)
-                    .select('modelo')
-                    .eq('id', produtoId)
-                    .single();
-                nomeProduto = produto['modelo'] ?? nomeProduto;
-              } catch (_) {}
-            }
-
-            history.add({
-              'produto': nomeProduto,
-              'data': venda['data_venda'],
-              'valor': (venda['valor_total'] as num).toDouble(),
-              'tipo_pagamento': venda['tipo_pagamento'], 
-              'numero_parcela': numParcelas, // Enviando no singular, do jeito que a sua tela está esperando!
-            });
-          }
-        }
-      }
-
-      _customerHistory = history;
-    } catch (e) {
-      debugPrint('Erro ao carregar histórico do cliente: $e');
-      _customerHistory = [];
+      await operation();
+      await _refreshCustomers();
+      _errorMessage = null;
+    } catch (error, stackTrace) {
+      _recordError(errorMessage, error, stackTrace);
+      rethrow;
     } finally {
-      _isLoadingHistory = false;
-      notifyListeners();
+      _setLoading(false);
     }
+  }
+
+  Future<void> _refreshFromWatcher() async {
+    try {
+      await _refreshCustomers();
+      _errorMessage = null;
+      _notifyListeners();
+    } catch (error, stackTrace) {
+      _recordError(
+        'Erro ao observar clientes locais',
+        error,
+        stackTrace,
+      );
+      _notifyListeners();
+    }
+  }
+
+  Future<void> _refreshCustomers() async {
+    final refreshVersion = ++_refreshVersion;
+    final localCustomers = await _isar.clienteLocals.where().findAll();
+    if (_isDisposed || refreshVersion != _refreshVersion) return;
+
+    final visibleCustomers = localCustomers
+        .where(
+          (cliente) => cliente.ativo && _canUseTenant(cliente.empresaId),
+        )
+        .map(_toModel)
+        .toList()
+      ..sort(
+        (first, second) => first.nome.toLowerCase().compareTo(
+              second.nome.toLowerCase(),
+            ),
+      );
+
+    _customers = visibleCustomers;
+    final visibleIds = visibleCustomers
+        .map((cliente) => cliente.localId)
+        .whereType<String>()
+        .toSet();
+    _customerInsightsCache.removeWhere(
+      (localId, _) => !visibleIds.contains(localId),
+    );
+  }
+
+  ClienteModel _toModel(ClienteLocal cliente) {
+    return ClienteModel(
+      localId: cliente.id.toString(),
+      id: cliente.supabaseId,
+      nome: cliente.nome,
+      celular: cliente.celular,
+      referencia: cliente.referencia,
+      observacoes: cliente.observacoes,
+      ativo: cliente.ativo,
+      legacyId: cliente.legacyId,
+    );
+  }
+
+  void _applyModel(ClienteLocal local, ClienteModel cliente) {
+    local
+      ..nome = cliente.nome.trim()
+      ..celular = cliente.celular.trim()
+      ..referencia = cliente.referencia.trim()
+      ..observacoes = cliente.observacoes.trim()
+      ..ativo = cliente.ativo
+      ..legacyId = cliente.legacyId;
+  }
+
+  int _requiredLocalId(String? value) {
+    final localId = int.tryParse(value ?? '');
+    if (localId == null || localId <= 0) {
+      throw ArgumentError.value(
+        value,
+        'localId',
+        'O identificador local do cliente é inválido.',
+      );
+    }
+    return localId;
+  }
+
+  bool _canUseTenant(String? empresaId) {
+    return empresaId == null || empresaId == _empresaId;
+  }
+
+  void _setLoading(bool value) {
+    if (_isDisposed || _isLoading == value) return;
+    _isLoading = value;
+    _notifyListeners();
+  }
+
+  void _recordError(
+    String message,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    if (_isDisposed) return;
+    _errorMessage = message;
+    debugPrint('$message: $error');
+    debugPrintStack(stackTrace: stackTrace);
+  }
+
+  void _handleWatcherError(Object error, StackTrace stackTrace) {
+    _recordError(
+      'Erro ao observar clientes locais',
+      error,
+      stackTrace,
+    );
+    _notifyListeners();
+  }
+
+  void _notifyListeners() {
+    if (!_isDisposed) notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    unawaited(_customerSubscription.cancel());
+    super.dispose();
   }
 }
