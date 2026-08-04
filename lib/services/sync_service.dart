@@ -323,6 +323,7 @@ class SyncService {
     if (rows == null) return null;
 
     final seenIds = <String>{};
+    var savedCount = 0;
     for (final row in rows) {
       final remoteId = _readRemoteId(row);
       if (remoteId == null) continue;
@@ -345,8 +346,10 @@ class SyncService {
           ..legacyId = _asNullableInt(row['legacy_id']);
 
         await _isar.writeTxn(() => _isar.clienteLocals.put(cliente));
+        savedCount++;
       });
     }
+    _logPullSummary('clientes', rows.length, savedCount);
     return seenIds;
   }
 
@@ -366,6 +369,7 @@ class SyncService {
     if (rows == null) return null;
 
     final seenIds = <String>{};
+    var savedCount = 0;
     for (final row in rows) {
       final remoteId = _readRemoteId(row);
       if (remoteId == null) continue;
@@ -389,8 +393,10 @@ class SyncService {
           ..ativo = _asBool(row['ativo'], fallback: true);
 
         await _isar.writeTxn(() => _isar.produtoLocals.put(produto));
+        savedCount++;
       });
     }
+    _logPullSummary('produtos', rows.length, savedCount);
     return seenIds;
   }
 
@@ -410,6 +416,7 @@ class SyncService {
     if (rows == null) return null;
 
     final seenIds = <String>{};
+    var savedCount = 0;
     for (final row in rows) {
       final remoteId = _readRemoteId(row);
       if (remoteId == null) continue;
@@ -447,8 +454,10 @@ class SyncService {
           await _isar.vendaLocals.put(venda);
           await venda.cliente.save();
         });
+        savedCount++;
       });
     }
+    _logPullSummary('vendas', rows.length, savedCount);
     return seenIds;
   }
 
@@ -468,6 +477,7 @@ class SyncService {
     if (rows == null) return null;
 
     final seenIds = <String>{};
+    var savedCount = 0;
     for (final row in rows) {
       final remoteId = _readRemoteId(row);
       if (remoteId == null) continue;
@@ -507,8 +517,10 @@ class SyncService {
           await item.venda.save();
           await item.produto.save();
         });
+        savedCount++;
       });
     }
+    _logPullSummary('itens de venda', rows.length, savedCount);
     return seenIds;
   }
 
@@ -528,6 +540,7 @@ class SyncService {
     if (rows == null) return null;
 
     final seenIds = <String>{};
+    var savedCount = 0;
     for (final row in rows) {
       final remoteId = _readRemoteId(row);
       if (remoteId == null) continue;
@@ -563,8 +576,10 @@ class SyncService {
           await _isar.parcelaLocals.put(parcela);
           await parcela.venda.save();
         });
+        savedCount++;
       });
     }
+    _logPullSummary('parcelas', rows.length, savedCount);
     return seenIds;
   }
 
@@ -772,6 +787,13 @@ class SyncService {
 
   void _logDeferred(String entity, Object id, String reason) {
     debugPrint('Sync adiado: $entity local $id; $reason.');
+  }
+
+  void _logPullSummary(String entity, int received, int saved) {
+    debugPrint(
+      'Pull $entity: $received recebidos do Supabase; '
+      '$saved salvos no Isar.',
+    );
   }
 
   void _logError(
