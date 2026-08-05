@@ -51,10 +51,14 @@ class SyncStatusButton extends StatelessWidget {
   }
 
   Future<void> _showDetails(BuildContext context) {
+    final controller = context.read<SyncController>();
     return showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (_) => const _SyncDetailsSheet(),
+      builder: (_) => ChangeNotifierProvider.value(
+        value: controller,
+        child: const _SyncDetailsSheet(),
+      ),
     );
   }
 }

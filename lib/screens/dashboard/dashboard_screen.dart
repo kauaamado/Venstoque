@@ -8,6 +8,7 @@ import '../../providers/sync_controller.dart';
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
 import '../../utils/sync_feedback.dart';
+import '../../widgets/account_menu_button.dart';
 import '../../widgets/summary_card.dart';
 import '../../widgets/sync_status_button.dart';
 import '../sales/sale_history_screen.dart';
@@ -90,7 +91,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: const [SyncStatusButton()],
+        actions: const [SyncStatusButton(), AccountMenuButton()],
       ),
       body: RefreshIndicator(
         onRefresh: _refreshDashboard,
