@@ -47,15 +47,30 @@ const ClienteLocalSchema = CollectionSchema(
       name: r'observacoes',
       type: IsarType.string,
     ),
-    r'referencia': PropertySchema(
+    r'pendingDelete': PropertySchema(
       id: 6,
+      name: r'pendingDelete',
+      type: IsarType.bool,
+    ),
+    r'referencia': PropertySchema(
+      id: 7,
       name: r'referencia',
       type: IsarType.string,
     ),
     r'supabaseId': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'supabaseId',
       type: IsarType.string,
+    ),
+    r'syncPending': PropertySchema(
+      id: 9,
+      name: r'syncPending',
+      type: IsarType.bool,
+    ),
+    r'syncRevision': PropertySchema(
+      id: 10,
+      name: r'syncRevision',
+      type: IsarType.long,
     )
   },
   estimateSize: _clienteLocalEstimateSize,
@@ -136,8 +151,11 @@ void _clienteLocalSerialize(
   writer.writeLong(offsets[3], object.legacyId);
   writer.writeString(offsets[4], object.nome);
   writer.writeString(offsets[5], object.observacoes);
-  writer.writeString(offsets[6], object.referencia);
-  writer.writeString(offsets[7], object.supabaseId);
+  writer.writeBool(offsets[6], object.pendingDelete);
+  writer.writeString(offsets[7], object.referencia);
+  writer.writeString(offsets[8], object.supabaseId);
+  writer.writeBool(offsets[9], object.syncPending);
+  writer.writeLong(offsets[10], object.syncRevision);
 }
 
 ClienteLocal _clienteLocalDeserialize(
@@ -154,8 +172,11 @@ ClienteLocal _clienteLocalDeserialize(
   object.legacyId = reader.readLongOrNull(offsets[3]);
   object.nome = reader.readString(offsets[4]);
   object.observacoes = reader.readString(offsets[5]);
-  object.referencia = reader.readString(offsets[6]);
-  object.supabaseId = reader.readStringOrNull(offsets[7]);
+  object.pendingDelete = reader.readBool(offsets[6]);
+  object.referencia = reader.readString(offsets[7]);
+  object.supabaseId = reader.readStringOrNull(offsets[8]);
+  object.syncPending = reader.readBool(offsets[9]);
+  object.syncRevision = reader.readLong(offsets[10]);
   return object;
 }
 
@@ -179,9 +200,15 @@ P _clienteLocalDeserializeProp<P>(
     case 5:
       return (reader.readString(offset)) as P;
     case 6:
-      return (reader.readString(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 7:
+      return (reader.readString(offset)) as P;
+    case 8:
       return (reader.readStringOrNull(offset)) as P;
+    case 9:
+      return (reader.readBool(offset)) as P;
+    case 10:
+      return (reader.readLong(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -1113,6 +1140,16 @@ extension ClienteLocalQueryFilter
   }
 
   QueryBuilder<ClienteLocal, ClienteLocal, QAfterFilterCondition>
+      pendingDeleteEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'pendingDelete',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterFilterCondition>
       referenciaEqualTo(
     String value, {
     bool caseSensitive = true,
@@ -1401,6 +1438,72 @@ extension ClienteLocalQueryFilter
       ));
     });
   }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterFilterCondition>
+      syncPendingEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'syncPending',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterFilterCondition>
+      syncRevisionEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'syncRevision',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterFilterCondition>
+      syncRevisionGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'syncRevision',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterFilterCondition>
+      syncRevisionLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'syncRevision',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterFilterCondition>
+      syncRevisionBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'syncRevision',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
 }
 
 extension ClienteLocalQueryObject
@@ -1484,6 +1587,19 @@ extension ClienteLocalQuerySortBy
     });
   }
 
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy> sortByPendingDelete() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'pendingDelete', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy>
+      sortByPendingDeleteDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'pendingDelete', Sort.desc);
+    });
+  }
+
   QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy> sortByReferencia() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'referencia', Sort.asc);
@@ -1507,6 +1623,32 @@ extension ClienteLocalQuerySortBy
       sortBySupabaseIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'supabaseId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy> sortBySyncPending() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncPending', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy>
+      sortBySyncPendingDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncPending', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy> sortBySyncRevision() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncRevision', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy>
+      sortBySyncRevisionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncRevision', Sort.desc);
     });
   }
 }
@@ -1598,6 +1740,19 @@ extension ClienteLocalQuerySortThenBy
     });
   }
 
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy> thenByPendingDelete() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'pendingDelete', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy>
+      thenByPendingDeleteDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'pendingDelete', Sort.desc);
+    });
+  }
+
   QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy> thenByReferencia() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'referencia', Sort.asc);
@@ -1621,6 +1776,32 @@ extension ClienteLocalQuerySortThenBy
       thenBySupabaseIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'supabaseId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy> thenBySyncPending() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncPending', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy>
+      thenBySyncPendingDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncPending', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy> thenBySyncRevision() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncRevision', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy>
+      thenBySyncRevisionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncRevision', Sort.desc);
     });
   }
 }
@@ -1667,6 +1848,13 @@ extension ClienteLocalQueryWhereDistinct
     });
   }
 
+  QueryBuilder<ClienteLocal, ClienteLocal, QDistinct>
+      distinctByPendingDelete() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'pendingDelete');
+    });
+  }
+
   QueryBuilder<ClienteLocal, ClienteLocal, QDistinct> distinctByReferencia(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -1678,6 +1866,18 @@ extension ClienteLocalQueryWhereDistinct
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'supabaseId', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QDistinct> distinctBySyncPending() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'syncPending');
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QDistinct> distinctBySyncRevision() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'syncRevision');
     });
   }
 }
@@ -1726,6 +1926,12 @@ extension ClienteLocalQueryProperty
     });
   }
 
+  QueryBuilder<ClienteLocal, bool, QQueryOperations> pendingDeleteProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'pendingDelete');
+    });
+  }
+
   QueryBuilder<ClienteLocal, String, QQueryOperations> referenciaProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'referencia');
@@ -1735,6 +1941,18 @@ extension ClienteLocalQueryProperty
   QueryBuilder<ClienteLocal, String?, QQueryOperations> supabaseIdProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'supabaseId');
+    });
+  }
+
+  QueryBuilder<ClienteLocal, bool, QQueryOperations> syncPendingProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'syncPending');
+    });
+  }
+
+  QueryBuilder<ClienteLocal, int, QQueryOperations> syncRevisionProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'syncRevision');
     });
   }
 }

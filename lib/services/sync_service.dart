@@ -9,9 +9,11 @@ import '../models/local/item_venda_model.dart';
 import '../models/local/parcela_model.dart';
 import '../models/local/produto_model.dart';
 import '../models/local/venda_model.dart';
+import '../models/sync_report.dart';
 import '../utils/constants.dart';
+import 'sync_gateway.dart';
 
-class SyncService {
+class SyncService implements SyncGateway {
   SyncService(this._isar, {required String empresaId})
       : _empresaId = empresaId.trim(),
         _client = Supabase.instance.client {
@@ -30,15 +32,44 @@ class SyncService {
   final String _empresaId;
   final SupabaseClient _client;
 
-  Future<void>? _activeSync;
+  Future<SyncReport>? _activeSync;
+  SyncReportBuilder? _currentReport;
 
-  Future<void> syncAllToServer() => _runExclusive(_pushAll);
+  Future<SyncReport> syncAllToServer() =>
+      _runExclusive(SyncScope.all, _pushAll);
 
-  Future<void> syncAllFromServer() => _runExclusive(_pullAll);
+  Future<SyncReport> syncAllFromServer() =>
+      _runExclusive(SyncScope.all, _pullAll);
 
-  Future<void> syncAll() => _runExclusive(() async {
+  @override
+  Future<SyncReport> syncAll() => _runExclusive(SyncScope.all, () async {
         await _pushAll();
         await _pullAll();
+      });
+
+  @override
+  Future<SyncReport> syncCustomersFromServer() =>
+      _runExclusive(SyncScope.customers, () async {
+        await _runStageSafely('push clientes', _pushClientes);
+        final clientes =
+            await _runPullStageSafely('pull clientes', _pullClientes);
+        if (clientes != null) await _reconcileClientes(clientes);
+      });
+
+  @override
+  Future<SyncReport> syncProductsFromServer() =>
+      _runExclusive(SyncScope.products, () async {
+        await _runStageSafely('push produtos', _pushProdutos);
+        final produtos =
+            await _runPullStageSafely('pull produtos', _pullProdutos);
+        if (produtos != null) await _reconcileProdutos(produtos);
+      });
+
+  @override
+  Future<SyncReport> syncSalesFromServer() =>
+      _runExclusive(SyncScope.sales, () async {
+        await _pushAll();
+        await _pullSalesGraph();
       });
 
   Future<void> _pushAll() async {
@@ -68,53 +99,43 @@ class SyncService {
     if (parcelas != null) {
       await _runStageSafely(
         'reconciliação de parcelas',
-        () => _deleteMissingForTenant<ParcelaLocal>(
-          entity: 'parcela',
-          collection: _isar.parcelaLocals,
-          remoteIds: parcelas,
-          localId: (item) => item.id,
-          remoteId: (item) => item.supabaseId,
-          tenantId: (item) => item.empresaId,
-        ),
+        () => _deleteMissingParcelas(parcelas),
       );
     }
     if (vendas != null) {
       await _runStageSafely(
         'reconciliação de vendas',
-        () => _deleteMissingForTenant<VendaLocal>(
-          entity: 'venda',
-          collection: _isar.vendaLocals,
-          remoteIds: vendas,
-          localId: (item) => item.id,
-          remoteId: (item) => item.supabaseId,
-          tenantId: (item) => item.empresaId,
-        ),
+        () => _deleteMissingVendas(vendas),
       );
     }
-    if (produtos != null) {
+    if (produtos != null) await _reconcileProdutos(produtos);
+    if (clientes != null) await _reconcileClientes(clientes);
+  }
+
+  Future<void> _pullSalesGraph() async {
+    await _runPullStageSafely('pull clientes', _pullClientes);
+    await _runPullStageSafely('pull produtos', _pullProdutos);
+    final vendas = await _runPullStageSafely('pull vendas', _pullVendas);
+    final itens =
+        await _runPullStageSafely('pull itens de venda', _pullItensVenda);
+    final parcelas = await _runPullStageSafely('pull parcelas', _pullParcelas);
+
+    if (itens != null) {
       await _runStageSafely(
-        'reconciliação de produtos',
-        () => _deleteMissingForTenant<ProdutoLocal>(
-          entity: 'produto',
-          collection: _isar.produtoLocals,
-          remoteIds: produtos,
-          localId: (item) => item.id,
-          remoteId: (item) => item.supabaseId,
-          tenantId: (item) => item.empresaId,
-        ),
+        'reconciliação de itens de venda',
+        () => _deleteMissingItens(itens),
       );
     }
-    if (clientes != null) {
+    if (parcelas != null) {
       await _runStageSafely(
-        'reconciliação de clientes',
-        () => _deleteMissingForTenant<ClienteLocal>(
-          entity: 'cliente',
-          collection: _isar.clienteLocals,
-          remoteIds: clientes,
-          localId: (item) => item.id,
-          remoteId: (item) => item.supabaseId,
-          tenantId: (item) => item.empresaId,
-        ),
+        'reconciliação de parcelas',
+        () => _deleteMissingParcelas(parcelas),
+      );
+    }
+    if (vendas != null) {
+      await _runStageSafely(
+        'reconciliação de vendas',
+        () => _deleteMissingVendas(vendas),
       );
     }
   }
@@ -125,6 +146,7 @@ class SyncService {
 
     for (final cliente in pending) {
       if (!_canUseTenant(cliente.empresaId)) continue;
+      final sentRevision = cliente.syncRevision;
 
       await _runRecordSafely('push cliente', cliente.id, () async {
         final remoteId = await _insertAndGetId(AppTables.clientes, {
@@ -137,17 +159,25 @@ class SyncService {
           'legacy_id': cliente.legacyId,
         });
 
-        await _markSynced<ClienteLocal>(
+        final keptLocally = await _markSynced<ClienteLocal>(
           collection: _isar.clienteLocals,
           localId: cliente.id,
           remoteId: remoteId,
           update: (current, id) {
             current.supabaseId = id;
             current.empresaId ??= _empresaId;
+            current.syncPending = current.syncRevision != sentRevision;
           },
         );
+        if (!keptLocally) {
+          await _deleteRemote(AppTables.clientes, remoteId);
+        }
+        _recordPushed();
       });
     }
+
+    await _pushClienteUpdates();
+    await _pushClienteDeletes();
   }
 
   Future<void> _pushProdutos() async {
@@ -156,6 +186,7 @@ class SyncService {
 
     for (final produto in pending) {
       if (!_canUseTenant(produto.empresaId)) continue;
+      final sentRevision = produto.syncRevision;
 
       await _runRecordSafely('push produto', produto.id, () async {
         final remoteId = await _insertAndGetId(AppTables.produtos, {
@@ -169,17 +200,25 @@ class SyncService {
           'ativo': produto.ativo,
         });
 
-        await _markSynced<ProdutoLocal>(
+        final keptLocally = await _markSynced<ProdutoLocal>(
           collection: _isar.produtoLocals,
           localId: produto.id,
           remoteId: remoteId,
           update: (current, id) {
             current.supabaseId = id;
             current.empresaId ??= _empresaId;
+            current.syncPending = current.syncRevision != sentRevision;
           },
         );
+        if (!keptLocally) {
+          await _deleteRemote(AppTables.produtos, remoteId);
+        }
+        _recordPushed();
       });
     }
+
+    await _pushProdutoUpdates();
+    await _pushProdutoDeletes();
   }
 
   Future<void> _pushVendas() async {
@@ -220,6 +259,7 @@ class SyncService {
             current.empresaId ??= _empresaId;
           },
         );
+        _recordPushed();
       });
     }
   }
@@ -263,6 +303,7 @@ class SyncService {
           remoteId: remoteId,
           update: (current, id) => current.supabaseId = id,
         );
+        _recordPushed();
       });
     }
   }
@@ -273,6 +314,7 @@ class SyncService {
 
     for (final parcela in pending) {
       if (!_canUseTenant(parcela.empresaId)) continue;
+      final sentRevision = parcela.syncRevision;
 
       await _runRecordSafely('push parcela', parcela.id, () async {
         await parcela.venda.load();
@@ -301,8 +343,148 @@ class SyncService {
           update: (current, id) {
             current.supabaseId = id;
             current.empresaId ??= _empresaId;
+            current.syncPending = current.syncRevision != sentRevision;
           },
         );
+        _recordPushed();
+      });
+    }
+
+    await _pushParcelaUpdates();
+  }
+
+  Future<void> _pushClienteUpdates() async {
+    final clientes = await _isar.clienteLocals.where().findAll();
+    for (final cliente in clientes.where(
+      (item) =>
+          item.supabaseId != null &&
+          item.syncPending &&
+          !item.pendingDelete &&
+          item.empresaId == _empresaId,
+    )) {
+      final sentRevision = cliente.syncRevision;
+      await _runRecordSafely('update cliente', cliente.id, () async {
+        await _updateRemote(
+          AppTables.clientes,
+          cliente.supabaseId!,
+          {
+            'nome': cliente.nome,
+            'celular': cliente.celular,
+            'referencia': cliente.referencia,
+            'observacoes': cliente.observacoes,
+            'ativo': cliente.ativo,
+            'legacy_id': cliente.legacyId,
+          },
+        );
+        await _isar.writeTxn(() async {
+          final current = await _isar.clienteLocals.get(cliente.id);
+          if (current?.supabaseId != cliente.supabaseId) return;
+          current!.syncPending = current.syncRevision != sentRevision;
+          await _isar.clienteLocals.put(current);
+        });
+        _recordPushed();
+      });
+    }
+  }
+
+  Future<void> _pushClienteDeletes() async {
+    final clientes = await _isar.clienteLocals.where().findAll();
+    for (final cliente in clientes.where(
+      (item) =>
+          item.supabaseId != null &&
+          item.pendingDelete &&
+          item.empresaId == _empresaId,
+    )) {
+      await _runRecordSafely('delete cliente', cliente.id, () async {
+        await _deleteRemote(AppTables.clientes, cliente.supabaseId!);
+        await _isar.writeTxn(
+          () => _isar.clienteLocals.delete(cliente.id),
+        );
+        _recordPushed();
+      });
+    }
+  }
+
+  Future<void> _pushProdutoUpdates() async {
+    final produtos = await _isar.produtoLocals.where().findAll();
+    for (final produto in produtos.where(
+      (item) =>
+          item.supabaseId != null &&
+          item.syncPending &&
+          !item.pendingDelete &&
+          item.empresaId == _empresaId,
+    )) {
+      final sentRevision = produto.syncRevision;
+      await _runRecordSafely('update produto', produto.id, () async {
+        await _updateRemote(
+          AppTables.produtos,
+          produto.supabaseId!,
+          {
+            'nome': produto.nome,
+            'categoria': produto.categoria,
+            'fornecedor': produto.fornecedor,
+            'preco_custo': produto.precoCusto,
+            'valor_venda': produto.valorVenda,
+            'quantidade_estoque': produto.quantidadeEstoque,
+            'ativo': produto.ativo,
+          },
+        );
+        await _isar.writeTxn(() async {
+          final current = await _isar.produtoLocals.get(produto.id);
+          if (current?.supabaseId != produto.supabaseId) return;
+          current!.syncPending = current.syncRevision != sentRevision;
+          await _isar.produtoLocals.put(current);
+        });
+        _recordPushed();
+      });
+    }
+  }
+
+  Future<void> _pushProdutoDeletes() async {
+    final produtos = await _isar.produtoLocals.where().findAll();
+    for (final produto in produtos.where(
+      (item) =>
+          item.supabaseId != null &&
+          item.pendingDelete &&
+          item.empresaId == _empresaId,
+    )) {
+      await _runRecordSafely('delete produto', produto.id, () async {
+        await _deleteRemote(AppTables.produtos, produto.supabaseId!);
+        await _isar.writeTxn(
+          () => _isar.produtoLocals.delete(produto.id),
+        );
+        _recordPushed();
+      });
+    }
+  }
+
+  Future<void> _pushParcelaUpdates() async {
+    final parcelas = await _isar.parcelaLocals.where().findAll();
+    for (final parcela in parcelas.where(
+      (item) =>
+          item.supabaseId != null &&
+          item.syncPending &&
+          item.empresaId == _empresaId,
+    )) {
+      final sentRevision = parcela.syncRevision;
+      await _runRecordSafely('update parcela', parcela.id, () async {
+        await _updateRemote(
+          AppTables.parcelas,
+          parcela.supabaseId!,
+          {
+            'valor': parcela.valor,
+            'data_vencimento': parcela.dataVencimento.toIso8601String(),
+            'data_pagamento': parcela.dataPagamento?.toIso8601String(),
+            'status': parcela.status,
+          },
+        );
+        await _isar.writeTxn(() async {
+          final current = await _isar.parcelaLocals.get(parcela.id);
+          if (current?.supabaseId != parcela.supabaseId) return;
+          current!.syncPending = current.syncRevision != sentRevision;
+          await _isar.parcelaLocals.put(current);
+        });
+        _recordPushed();
       });
     }
   }
@@ -330,11 +512,15 @@ class SyncService {
       seenIds.add(remoteId);
 
       await _runRecordSafely('pull cliente', remoteId, () async {
-        final cliente = await _isar.clienteLocals
-                .where()
-                .supabaseIdEqualTo(remoteId)
-                .findFirst() ??
-            ClienteLocal();
+        final current = await _isar.clienteLocals
+            .where()
+            .supabaseIdEqualTo(remoteId)
+            .findFirst();
+        if (current != null && (current.syncPending || current.pendingDelete)) {
+          _logDeferred('cliente', current.id, 'alteração local pendente');
+          return;
+        }
+        final cliente = current ?? ClienteLocal();
         cliente
           ..supabaseId = remoteId
           ..empresaId = _empresaId
@@ -343,10 +529,13 @@ class SyncService {
           ..referencia = _asString(row['referencia'])
           ..observacoes = _asString(row['observacoes'])
           ..ativo = _asBool(row['ativo'], fallback: true)
+          ..syncPending = false
+          ..pendingDelete = false
           ..legacyId = _asNullableInt(row['legacy_id']);
 
         await _isar.writeTxn(() => _isar.clienteLocals.put(cliente));
         savedCount++;
+        _recordSaved();
       });
     }
     _logPullSummary('clientes', rows.length, savedCount);
@@ -376,11 +565,15 @@ class SyncService {
       seenIds.add(remoteId);
 
       await _runRecordSafely('pull produto', remoteId, () async {
-        final produto = await _isar.produtoLocals
-                .where()
-                .supabaseIdEqualTo(remoteId)
-                .findFirst() ??
-            ProdutoLocal();
+        final current = await _isar.produtoLocals
+            .where()
+            .supabaseIdEqualTo(remoteId)
+            .findFirst();
+        if (current != null && (current.syncPending || current.pendingDelete)) {
+          _logDeferred('produto', current.id, 'alteração local pendente');
+          return;
+        }
+        final produto = current ?? ProdutoLocal();
         produto
           ..supabaseId = remoteId
           ..empresaId = _empresaId
@@ -390,10 +583,13 @@ class SyncService {
           ..precoCusto = _asDouble(row['preco_custo'])
           ..valorVenda = _asDouble(row['valor_venda'])
           ..quantidadeEstoque = _asInt(row['quantidade_estoque'])
-          ..ativo = _asBool(row['ativo'], fallback: true);
+          ..ativo = _asBool(row['ativo'], fallback: true)
+          ..syncPending = false
+          ..pendingDelete = false;
 
         await _isar.writeTxn(() => _isar.produtoLocals.put(produto));
         savedCount++;
+        _recordSaved();
       });
     }
     _logPullSummary('produtos', rows.length, savedCount);
@@ -455,6 +651,7 @@ class SyncService {
           await venda.cliente.save();
         });
         savedCount++;
+        _recordSaved();
       });
     }
     _logPullSummary('vendas', rows.length, savedCount);
@@ -518,6 +715,7 @@ class SyncService {
           await item.produto.save();
         });
         savedCount++;
+        _recordSaved();
       });
     }
     _logPullSummary('itens de venda', rows.length, savedCount);
@@ -557,11 +755,15 @@ class SyncService {
               'Venda remota da parcela não encontrada localmente.');
         }
 
-        final parcela = await _isar.parcelaLocals
-                .where()
-                .supabaseIdEqualTo(remoteId)
-                .findFirst() ??
-            ParcelaLocal();
+        final current = await _isar.parcelaLocals
+            .where()
+            .supabaseIdEqualTo(remoteId)
+            .findFirst();
+        if (current?.syncPending == true) {
+          _logDeferred('parcela', current!.id, 'alteração local pendente');
+          return;
+        }
+        final parcela = current ?? ParcelaLocal();
         parcela
           ..supabaseId = remoteId
           ..empresaId = _empresaId
@@ -569,7 +771,8 @@ class SyncService {
           ..valor = _asDouble(row['valor'])
           ..dataVencimento = _requiredDate(row, 'data_vencimento')
           ..dataPagamento = _asNullableDate(row['data_pagamento'])
-          ..status = _asString(row['status']);
+          ..status = _asString(row['status'])
+          ..syncPending = false;
         parcela.venda.value = venda;
 
         await _isar.writeTxn(() async {
@@ -577,6 +780,7 @@ class SyncService {
           await parcela.venda.save();
         });
         savedCount++;
+        _recordSaved();
       });
     }
     _logPullSummary('parcelas', rows.length, savedCount);
@@ -595,6 +799,7 @@ class SyncService {
       while (true) {
         final page = await fetchPage(from, from + _pageSize - 1);
         rows.addAll(page);
+        _currentReport?.received += page.length;
         if (page.length < _pageSize) return rows;
         from += _pageSize;
       }
@@ -625,29 +830,127 @@ class SyncService {
     }
   }
 
-  Future<void> _deleteMissingForTenant<T>({
-    required String entity,
-    required IsarCollection<T> collection,
-    required Set<String> remoteIds,
-    required Id Function(T item) localId,
-    required String? Function(T item) remoteId,
-    required String? Function(T item) tenantId,
-  }) async {
-    final localItems = await collection.where().findAll();
+  Future<void> _deleteMissingParcelas(Set<String> remoteIds) async {
+    final parcelas = await _isar.parcelaLocals.where().findAll();
+    for (final parcela in parcelas) {
+      final remoteId = parcela.supabaseId;
+      if (remoteId == null ||
+          parcela.empresaId != _empresaId ||
+          remoteIds.contains(remoteId) ||
+          parcela.syncPending) {
+        continue;
+      }
+      await _runRecordSafely('exclusão local de parcela', parcela.id, () async {
+        await _isar.writeTxn(() => _isar.parcelaLocals.delete(parcela.id));
+      });
+    }
+  }
 
-    for (final item in localItems) {
-      final cloudId = remoteId(item);
-      if (cloudId == null ||
-          tenantId(item) != _empresaId ||
-          remoteIds.contains(cloudId)) {
+  Future<void> _deleteMissingVendas(Set<String> remoteIds) async {
+    final vendas = await _isar.vendaLocals.where().findAll();
+    for (final venda in vendas) {
+      final remoteId = venda.supabaseId;
+      if (remoteId == null ||
+          venda.empresaId != _empresaId ||
+          remoteIds.contains(remoteId)) {
         continue;
       }
 
-      final id = localId(item);
-      await _runRecordSafely('exclusão local de $entity', id, () async {
-        await _isar.writeTxn(() => collection.delete(id));
+      await _runRecordSafely('reconciliação local de venda', venda.id,
+          () async {
+        final items = await _isar.itemVendaLocals
+            .filter()
+            .venda((query) => query.idEqualTo(venda.id))
+            .findAll();
+        final parcelas = await _isar.parcelaLocals
+            .filter()
+            .venda((query) => query.idEqualTo(venda.id))
+            .findAll();
+        final hasPendingChildren =
+            items.any((item) => item.supabaseId == null) ||
+                parcelas.any(
+                  (parcela) =>
+                      parcela.supabaseId == null || parcela.syncPending,
+                );
+        if (hasPendingChildren) {
+          _logDeferred(
+            'venda',
+            venda.id,
+            'possui dependências locais pendentes',
+          );
+          return;
+        }
+        await _isar.writeTxn(() => _isar.vendaLocals.delete(venda.id));
       });
     }
+  }
+
+  Future<void> _reconcileProdutos(Set<String> remoteIds) async {
+    await _runStageSafely('reconciliação de produtos', () async {
+      final produtos = await _isar.produtoLocals.where().findAll();
+      for (final produto in produtos) {
+        final remoteId = produto.supabaseId;
+        if (remoteId == null ||
+            produto.empresaId != _empresaId ||
+            remoteIds.contains(remoteId) ||
+            produto.syncPending ||
+            produto.pendingDelete) {
+          continue;
+        }
+
+        await _runRecordSafely('reconciliação local de produto', produto.id,
+            () async {
+          final linkedItems = await _isar.itemVendaLocals
+              .filter()
+              .produto((query) => query.idEqualTo(produto.id))
+              .count();
+          await _isar.writeTxn(() async {
+            final current = await _isar.produtoLocals.get(produto.id);
+            if (current == null) return;
+            if (linkedItems > 0) {
+              current.ativo = false;
+              await _isar.produtoLocals.put(current);
+            } else {
+              await _isar.produtoLocals.delete(current.id);
+            }
+          });
+        });
+      }
+    });
+  }
+
+  Future<void> _reconcileClientes(Set<String> remoteIds) async {
+    await _runStageSafely('reconciliação de clientes', () async {
+      final clientes = await _isar.clienteLocals.where().findAll();
+      for (final cliente in clientes) {
+        final remoteId = cliente.supabaseId;
+        if (remoteId == null ||
+            cliente.empresaId != _empresaId ||
+            remoteIds.contains(remoteId) ||
+            cliente.syncPending ||
+            cliente.pendingDelete) {
+          continue;
+        }
+
+        await _runRecordSafely('reconciliação local de cliente', cliente.id,
+            () async {
+          final linkedSales = await _isar.vendaLocals
+              .filter()
+              .cliente((query) => query.idEqualTo(cliente.id))
+              .count();
+          await _isar.writeTxn(() async {
+            final current = await _isar.clienteLocals.get(cliente.id);
+            if (current == null) return;
+            if (linkedSales > 0) {
+              current.ativo = false;
+              await _isar.clienteLocals.put(current);
+            } else {
+              await _isar.clienteLocals.delete(current.id);
+            }
+          });
+        });
+      }
+    });
   }
 
   Future<String> _insertAndGetId(
@@ -659,18 +962,46 @@ class SyncService {
     return _requiredString(response, 'id');
   }
 
-  Future<void> _markSynced<T>({
+  Future<void> _updateRemote(
+    String table,
+    String remoteId,
+    Map<String, dynamic> payload,
+  ) async {
+    final response = await _client
+        .from(table)
+        .update(payload)
+        .eq('id', remoteId)
+        .eq('empresa_id', _empresaId)
+        .select('id');
+    if (response.isEmpty) {
+      throw StateError('Registro remoto não encontrado para atualização.');
+    }
+  }
+
+  Future<void> _deleteRemote(String table, String remoteId) async {
+    await _client
+        .from(table)
+        .delete()
+        .eq('id', remoteId)
+        .eq('empresa_id', _empresaId)
+        .select('id');
+  }
+
+  Future<bool> _markSynced<T>({
     required IsarCollection<T> collection,
     required Id localId,
     required String remoteId,
     required void Function(T current, String remoteId) update,
   }) async {
+    var updated = false;
     await _isar.writeTxn(() async {
       final current = await collection.get(localId);
       if (current == null) return;
       update(current, remoteId);
       await collection.put(current);
+      updated = true;
     });
+    return updated;
   }
 
   Future<void> _runRecordSafely(
@@ -712,21 +1043,33 @@ class SyncService {
     }
   }
 
-  Future<void> _guardOperation(Future<void> Function() operation) async {
+  Future<SyncReport> _guardOperation(
+    SyncReportBuilder report,
+    Future<void> Function() operation,
+  ) async {
     try {
       await operation();
     } catch (error, stackTrace) {
       _logError('sincronização', 'ciclo', error, stackTrace);
     }
+    return report.build();
   }
 
-  Future<void> _runExclusive(Future<void> Function() operation) {
+  Future<SyncReport> _runExclusive(
+    SyncScope scope,
+    Future<void> Function() operation,
+  ) {
     final activeSync = _activeSync;
     if (activeSync != null) return activeSync;
 
-    late final Future<void> currentSync;
-    currentSync = _guardOperation(operation).whenComplete(() {
-      if (identical(_activeSync, currentSync)) _activeSync = null;
+    final report = SyncReportBuilder(scope);
+    _currentReport = report;
+    late final Future<SyncReport> currentSync;
+    currentSync = _guardOperation(report, operation).whenComplete(() {
+      if (identical(_activeSync, currentSync)) {
+        _activeSync = null;
+        _currentReport = null;
+      }
     });
     _activeSync = currentSync;
     return currentSync;
@@ -786,6 +1129,7 @@ class SyncService {
   }
 
   void _logDeferred(String entity, Object id, String reason) {
+    _currentReport?.deferred++;
     debugPrint('Sync adiado: $entity local $id; $reason.');
   }
 
@@ -802,7 +1146,30 @@ class SyncService {
     Object error, [
     StackTrace? stackTrace,
   ]) {
+    final isNetworkError = _isNetworkError(error);
+    _currentReport?.issues.add(
+      SyncIssue(
+        operation: operation,
+        message: isNetworkError
+            ? 'Sem conexão com o servidor.'
+            : 'Não foi possível concluir esta operação.',
+        isNetworkError: isNetworkError,
+      ),
+    );
     debugPrint('Falha em $operation para $recordId: $error');
     if (stackTrace != null) debugPrintStack(stackTrace: stackTrace);
+  }
+
+  void _recordPushed() => _currentReport?.pushed++;
+
+  void _recordSaved() => _currentReport?.saved++;
+
+  bool _isNetworkError(Object error) {
+    if (error is SocketException) return true;
+    final description = error.toString().toLowerCase();
+    return description.contains('socket') ||
+        description.contains('connection') ||
+        description.contains('network') ||
+        description.contains('failed host lookup');
   }
 }

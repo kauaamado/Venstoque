@@ -4,10 +4,12 @@ import 'package:provider/provider.dart';
 
 import '../../providers/sale_provider.dart';
 import '../../providers/stock_provider.dart';
-import '../../services/sync_service.dart';
+import '../../providers/sync_controller.dart';
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
+import '../../utils/sync_feedback.dart';
 import '../../widgets/summary_card.dart';
+import '../../widgets/sync_status_button.dart';
 import '../sales/sale_history_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -18,8 +20,6 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  bool _isSyncing = false;
-
   @override
   void initState() {
     super.initState();
@@ -38,41 +38,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Future<void> _testSync() async {
-    if (_isSyncing) return;
-
-    setState(() => _isSyncing = true);
-
-    try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sincronização iniciada')),
-      );
-
-      await context.read<SyncService>().syncAll();
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Sincronização concluída. Consulte o console para possíveis falhas.',
-          ),
-        ),
-      );
-    } catch (error, stackTrace) {
-      debugPrint('Falha inesperada ao testar a sincronização: $error');
-      debugPrintStack(stackTrace: stackTrace);
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível concluir a sincronização.'),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _isSyncing = false);
-    }
+  Future<void> _refreshDashboard() async {
+    final report = await context.read<SyncController>().syncNow();
+    if (!mounted) return;
+    await _loadStats();
+    if (!mounted) return;
+    showSyncFeedback(context, report);
   }
 
   @override
@@ -119,24 +90,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          IconButton(
-            tooltip: 'Testar Sync',
-            onPressed: _isSyncing ? null : _testSync,
-            icon: _isSyncing
-                ? const SizedBox.square(
-                    dimension: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.sync),
-          ),
-        ],
+        actions: const [SyncStatusButton()],
       ),
       body: RefreshIndicator(
-        onRefresh: _loadStats,
+        onRefresh: _refreshDashboard,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           physics:

@@ -215,6 +215,46 @@ void main() {
     await _waitUntil(() => provider.sales.length == 1);
     expect(provider.sales.single.valorTotal, 25);
   });
+
+  test('marca estoque e pagamento sincronizados como pendentes', () async {
+    final customer = ClienteLocal()
+      ..empresaId = empresaId
+      ..supabaseId = 'cliente-remoto'
+      ..nome = 'Cliente';
+    final product = ProdutoLocal()
+      ..empresaId = empresaId
+      ..supabaseId = 'produto-remoto'
+      ..nome = 'Produto'
+      ..quantidadeEstoque = 5
+      ..valorVenda = 20;
+    await isar.writeTxn(() async {
+      await isar.clienteLocals.put(customer);
+      await isar.produtoLocals.put(product);
+    });
+
+    provider.setCustomer(_customerDto(customer));
+    provider.addToCart(_productDto(product), 1);
+    await provider.finalizeSale([
+      ParcelaModel(
+        numeroParcela: 1,
+        valor: 20,
+        dataVencimento: DateTime.now(),
+      ),
+    ]);
+
+    final storedProduct = await isar.produtoLocals.get(product.id);
+    expect(storedProduct!.syncPending, isTrue);
+
+    final installment = await isar.parcelaLocals.where().findFirst();
+    await isar.writeTxn(() async {
+      installment!.supabaseId = 'parcela-remota';
+      await isar.parcelaLocals.put(installment);
+    });
+    await provider.markParcelAsPaid(installment!.id.toString());
+
+    final storedInstallment = await isar.parcelaLocals.get(installment.id);
+    expect(storedInstallment!.syncPending, isTrue);
+  });
 }
 
 ClienteModel _customerDto(ClienteLocal customer) {

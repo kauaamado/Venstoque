@@ -10,6 +10,7 @@ import '../../models/produto_model.dart';
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/custom_search_bar.dart';
+import '../../widgets/sync_status_button.dart';
 import '../../utils/search_helper.dart';
 
 class NewSaleScreen extends StatefulWidget {
@@ -39,7 +40,10 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     final saleProvider = context.watch<SaleProvider>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Nova Venda')),
+      appBar: AppBar(
+        title: const Text('Nova Venda'),
+        actions: const [SyncStatusButton()],
+      ),
       body: Stepper(
         type: StepperType.horizontal,
         currentStep: _currentStep,

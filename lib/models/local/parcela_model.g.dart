@@ -47,8 +47,18 @@ const ParcelaLocalSchema = CollectionSchema(
       name: r'supabaseId',
       type: IsarType.string,
     ),
-    r'valor': PropertySchema(
+    r'syncPending': PropertySchema(
       id: 6,
+      name: r'syncPending',
+      type: IsarType.bool,
+    ),
+    r'syncRevision': PropertySchema(
+      id: 7,
+      name: r'syncRevision',
+      type: IsarType.long,
+    ),
+    r'valor': PropertySchema(
+      id: 8,
       name: r'valor',
       type: IsarType.double,
     )
@@ -135,7 +145,9 @@ void _parcelaLocalSerialize(
   writer.writeLong(offsets[3], object.numeroParcela);
   writer.writeString(offsets[4], object.status);
   writer.writeString(offsets[5], object.supabaseId);
-  writer.writeDouble(offsets[6], object.valor);
+  writer.writeBool(offsets[6], object.syncPending);
+  writer.writeLong(offsets[7], object.syncRevision);
+  writer.writeDouble(offsets[8], object.valor);
 }
 
 ParcelaLocal _parcelaLocalDeserialize(
@@ -152,7 +164,9 @@ ParcelaLocal _parcelaLocalDeserialize(
   object.numeroParcela = reader.readLong(offsets[3]);
   object.status = reader.readString(offsets[4]);
   object.supabaseId = reader.readStringOrNull(offsets[5]);
-  object.valor = reader.readDouble(offsets[6]);
+  object.syncPending = reader.readBool(offsets[6]);
+  object.syncRevision = reader.readLong(offsets[7]);
+  object.valor = reader.readDouble(offsets[8]);
   return object;
 }
 
@@ -176,6 +190,10 @@ P _parcelaLocalDeserializeProp<P>(
     case 5:
       return (reader.readStringOrNull(offset)) as P;
     case 6:
+      return (reader.readBool(offset)) as P;
+    case 7:
+      return (reader.readLong(offset)) as P;
+    case 8:
       return (reader.readDouble(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -1093,6 +1111,72 @@ extension ParcelaLocalQueryFilter
     });
   }
 
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      syncPendingEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'syncPending',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      syncRevisionEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'syncRevision',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      syncRevisionGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'syncRevision',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      syncRevisionLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'syncRevision',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      syncRevisionBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'syncRevision',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
   QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition> valorEqualTo(
     double value, {
     double epsilon = Query.epsilon,
@@ -1256,6 +1340,32 @@ extension ParcelaLocalQuerySortBy
     });
   }
 
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy> sortBySyncPending() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncPending', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy>
+      sortBySyncPendingDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncPending', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy> sortBySyncRevision() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncRevision', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy>
+      sortBySyncRevisionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncRevision', Sort.desc);
+    });
+  }
+
   QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy> sortByValor() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'valor', Sort.asc);
@@ -1360,6 +1470,32 @@ extension ParcelaLocalQuerySortThenBy
     });
   }
 
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy> thenBySyncPending() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncPending', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy>
+      thenBySyncPendingDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncPending', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy> thenBySyncRevision() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncRevision', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy>
+      thenBySyncRevisionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncRevision', Sort.desc);
+    });
+  }
+
   QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy> thenByValor() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'valor', Sort.asc);
@@ -1417,6 +1553,18 @@ extension ParcelaLocalQueryWhereDistinct
     });
   }
 
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QDistinct> distinctBySyncPending() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'syncPending');
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QDistinct> distinctBySyncRevision() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'syncRevision');
+    });
+  }
+
   QueryBuilder<ParcelaLocal, ParcelaLocal, QDistinct> distinctByValor() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'valor');
@@ -1467,6 +1615,18 @@ extension ParcelaLocalQueryProperty
   QueryBuilder<ParcelaLocal, String?, QQueryOperations> supabaseIdProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'supabaseId');
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, bool, QQueryOperations> syncPendingProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'syncPending');
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, int, QQueryOperations> syncRevisionProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'syncRevision');
     });
   }
 

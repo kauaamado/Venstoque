@@ -17,5 +17,8 @@ class ClienteLocal {
   String referencia = '';
   String observacoes = '';
   bool ativo = true;
+  bool syncPending = false;
+  bool pendingDelete = false;
+  int syncRevision = 0;
   int? legacyId;
 }

@@ -81,6 +81,9 @@ class CustomerProvider with ChangeNotifier {
 
         _applyModel(current, cliente);
         current.empresaId ??= _empresaId;
+        current
+          ..syncRevision = current.syncRevision + 1
+          ..syncPending = current.supabaseId != null;
         await _isar.clienteLocals.put(current);
       });
     });
@@ -103,9 +106,20 @@ class CustomerProvider with ChangeNotifier {
         }
 
         if (linkedSales > 0) {
-          current.ativo = false;
+          current
+            ..ativo = false
+            ..syncRevision = current.syncRevision + 1
+            ..syncPending = current.supabaseId != null;
           await _isar.clienteLocals.put(current);
           result = CustomerDeleteResult.deactivated;
+        } else if (current.supabaseId != null) {
+          current
+            ..ativo = false
+            ..pendingDelete = true
+            ..syncRevision = current.syncRevision + 1
+            ..syncPending = false;
+          await _isar.clienteLocals.put(current);
+          result = CustomerDeleteResult.deleted;
         } else {
           await _isar.clienteLocals.delete(localId);
           result = CustomerDeleteResult.deleted;
@@ -155,7 +169,10 @@ class CustomerProvider with ChangeNotifier {
 
     final visibleCustomers = localCustomers
         .where(
-          (cliente) => cliente.ativo && _canUseTenant(cliente.empresaId),
+          (cliente) =>
+              cliente.ativo &&
+              !cliente.pendingDelete &&
+              _canUseTenant(cliente.empresaId),
         )
         .map(_toModel)
         .toList()

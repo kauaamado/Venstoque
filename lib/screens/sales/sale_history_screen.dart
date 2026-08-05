@@ -3,8 +3,11 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/sale_provider.dart';
+import '../../providers/sync_controller.dart';
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
+import '../../utils/sync_feedback.dart';
+import '../../widgets/sync_status_button.dart';
 
 class SalesHistoryScreen extends StatefulWidget {
   const SalesHistoryScreen({super.key});
@@ -22,6 +25,14 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
     });
   }
 
+  Future<void> _refreshSales() async {
+    final report = await context.read<SyncController>().refreshSales();
+    if (!mounted) return;
+    await context.read<SaleProvider>().loadSales();
+    if (!mounted) return;
+    showSyncFeedback(context, report);
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<SaleProvider>();
@@ -37,53 +48,74 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
         title: const Text('Histórico de Vendas'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions: const [SyncStatusButton()],
       ),
-      body: provider.isLoading && provider.salesHistory.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : sortedMonths.isEmpty
-              ? const Center(
-                  child: Text(
-                    'Nenhuma venda registrada.',
-                    style: TextStyle(color: Colors.grey),
+      body: RefreshIndicator(
+        onRefresh: _refreshSales,
+        child: provider.isLoading && provider.salesHistory.isEmpty
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(
+                    height: 400,
+                    child: Center(child: CircularProgressIndicator()),
                   ),
-                )
-              : ListView.builder(
-                  itemCount: sortedMonths.length,
-                  itemBuilder: (context, index) {
-                    final monthKey = sortedMonths[index];
-                    final monthName = DateFormat(
-                      'MMMM / yyyy',
-                      'pt_BR',
-                    ).format(monthKey);
-                    final events = groupedData[monthKey]!
-                      ..sort(
-                        (first, second) => (second['data'] as DateTime)
-                            .compareTo(first['data'] as DateTime),
-                      );
-                    final totals = monthTotals[monthKey]!;
+                ],
+              )
+            : sortedMonths.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: const [
+                      SizedBox(
+                        height: 300,
+                        child: Center(
+                          child: Text(
+                            'Nenhuma venda registrada.',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: sortedMonths.length,
+                    itemBuilder: (context, index) {
+                      final monthKey = sortedMonths[index];
+                      final monthName = DateFormat(
+                        'MMMM / yyyy',
+                        'pt_BR',
+                      ).format(monthKey);
+                      final events = groupedData[monthKey]!
+                        ..sort(
+                          (first, second) => (second['data'] as DateTime)
+                              .compareTo(first['data'] as DateTime),
+                        );
+                      final totals = monthTotals[monthKey]!;
 
-                    return ExpansionTile(
-                      initiallyExpanded: index == 0,
-                      title: Text(
-                        monthName.toUpperCase(),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                      return ExpansionTile(
+                        initiallyExpanded: index == 0,
+                        title: Text(
+                          monthName.toUpperCase(),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                      subtitle: Text(
-                        'Total: ${AppFormatters.formatCurrency(totals['venda'] ?? 0)} | '
-                        'Lucro: ${AppFormatters.formatCurrency(totals['lucro'] ?? 0)}',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Colors.greenAccent,
-                          fontWeight: FontWeight.bold,
+                        subtitle: Text(
+                          'Total: ${AppFormatters.formatCurrency(totals['venda'] ?? 0)} | '
+                          'Lucro: ${AppFormatters.formatCurrency(totals['lucro'] ?? 0)}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.greenAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      children: events.map(_buildEventTile).toList(),
-                    );
-                  },
-                ),
+                        children: events.map(_buildEventTile).toList(),
+                      );
+                    },
+                  ),
+      ),
     );
   }
 

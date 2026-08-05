@@ -81,6 +81,9 @@ class StockProvider with ChangeNotifier {
         }
 
         _applyModel(current, product);
+        current
+          ..syncRevision = current.syncRevision + 1
+          ..syncPending = current.supabaseId != null;
         await _isar.produtoLocals.put(current);
       });
     });
@@ -100,7 +103,9 @@ class StockProvider with ChangeNotifier {
           ..quantidadeEstoque += entry.quantidade
           ..precoCusto = entry.custoUnitario
           ..valorVenda = newPrice
-          ..fornecedor = entry.fornecedor.trim();
+          ..fornecedor = entry.fornecedor.trim()
+          ..syncRevision = current.syncRevision + 1
+          ..syncPending = current.supabaseId != null;
         await _isar.produtoLocals.put(current);
       });
     });
@@ -123,9 +128,20 @@ class StockProvider with ChangeNotifier {
         }
 
         if (linkedItems > 0) {
-          current.ativo = false;
+          current
+            ..ativo = false
+            ..syncRevision = current.syncRevision + 1
+            ..syncPending = current.supabaseId != null;
           await _isar.produtoLocals.put(current);
           result = ProductDeleteResult.deactivated;
+        } else if (current.supabaseId != null) {
+          current
+            ..ativo = false
+            ..pendingDelete = true
+            ..syncRevision = current.syncRevision + 1
+            ..syncPending = false;
+          await _isar.produtoLocals.put(current);
+          result = ProductDeleteResult.deleted;
         } else {
           await _isar.produtoLocals.delete(localId);
           result = ProductDeleteResult.deleted;
@@ -171,6 +187,8 @@ class StockProvider with ChangeNotifier {
         .empresaIdEqualTo(_empresaId)
         .and()
         .ativoEqualTo(true)
+        .and()
+        .pendingDeleteEqualTo(false)
         .sortByNome()
         .findAll();
     if (_isDisposed || refreshVersion != _refreshVersion) return;

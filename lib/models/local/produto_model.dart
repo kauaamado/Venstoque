@@ -19,4 +19,7 @@ class ProdutoLocal {
   double valorVenda = 0;
   int quantidadeEstoque = 0;
   bool ativo = true;
+  bool syncPending = false;
+  bool pendingDelete = false;
+  int syncRevision = 0;
 }

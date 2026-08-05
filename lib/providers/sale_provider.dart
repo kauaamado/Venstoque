@@ -201,7 +201,10 @@ class SaleProvider with ChangeNotifier {
             throw StateError('Estoque insuficiente para ${product.nome}.');
           }
 
-          product.quantidadeEstoque -= cartItem.quantidade;
+          product
+            ..quantidadeEstoque -= cartItem.quantidade
+            ..syncRevision = product.syncRevision + 1
+            ..syncPending = product.supabaseId != null;
           await _isar.produtoLocals.put(product);
 
           final item = ItemVendaLocal()
@@ -299,7 +302,9 @@ class SaleProvider with ChangeNotifier {
       }
       installment
         ..status = 'pago'
-        ..dataPagamento = DateTime.now();
+        ..dataPagamento = DateTime.now()
+        ..syncRevision = installment.syncRevision + 1
+        ..syncPending = installment.supabaseId != null;
       await _isar.parcelaLocals.put(installment);
     });
     await _refreshSales();
@@ -317,7 +322,9 @@ class SaleProvider with ChangeNotifier {
         if (installment.empresaId != _empresaId) continue;
         installment
           ..status = 'pago'
-          ..dataPagamento = paymentDate;
+          ..dataPagamento = paymentDate
+          ..syncRevision = installment.syncRevision + 1
+          ..syncPending = installment.supabaseId != null;
         await _isar.parcelaLocals.put(installment);
       }
     });
@@ -335,7 +342,10 @@ class SaleProvider with ChangeNotifier {
       if (installment == null || installment.empresaId != _empresaId) {
         throw StateError('Parcela local não encontrada.');
       }
-      installment.valor = remaining;
+      installment
+        ..valor = remaining
+        ..syncRevision = installment.syncRevision + 1
+        ..syncPending = installment.supabaseId != null;
       await _isar.parcelaLocals.put(installment);
     });
     await _refreshSales();

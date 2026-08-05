@@ -3,12 +3,15 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../providers/customer_provider.dart';
 import '../../providers/sale_provider.dart';
+import '../../providers/sync_controller.dart';
 import '../../models/cliente_model.dart';
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
 import 'customer_profile_screen.dart';
 import '../../widgets/custom_search_bar.dart'; // NOVO IMPORT
 import '../../utils/search_helper.dart'; // NOVO IMPORT (verifique a ortografia)
+import '../../utils/sync_feedback.dart';
+import '../../widgets/sync_status_button.dart';
 
 class CustomerListScreen extends StatefulWidget {
   const CustomerListScreen({super.key});
@@ -34,6 +37,14 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<CustomerProvider>().loadCustomers();
     });
+  }
+
+  Future<void> _refreshCustomers() async {
+    final report = await context.read<SyncController>().refreshCustomers();
+    if (!mounted) return;
+    await context.read<CustomerProvider>().loadCustomers();
+    if (!mounted) return;
+    showSyncFeedback(context, report);
   }
 
   @override
@@ -90,177 +101,206 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
         title: const Text('Clientes'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions: const [SyncStatusButton()],
       ),
-      body: provider.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // NOVO: BARRA DE PESQUISA NA TELA
-                      CustomSearchBar(
-                        hintText: 'Buscar Cliente pelo nome...',
-                        onChanged: (texto) {
-                          setState(() {
-                            _searchQuery = texto;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 16),
-
-                      const Text(
-                        'Filtrar Clientes',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 16,
-                          ),
-                        ),
-                        initialValue: _filterOptions.contains(_selectedFilter)
-                            ? _selectedFilter
-                            : null,
-                        items: _filterOptions
-                            .map(
-                              (filter) => DropdownMenuItem(
-                                value: filter,
-                                child: Text(filter),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedFilter = value;
-                          });
-                        },
-                        isExpanded: true,
-                        hint: const Text('Ordenar por'),
-                      ),
-                    ],
+      body: RefreshIndicator(
+        onRefresh: _refreshCustomers,
+        child: provider.isLoading
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(
+                    height: 400,
+                    child: Center(child: CircularProgressIndicator()),
                   ),
-                ),
-                Expanded(
-                  child: filteredCustomers.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'Nenhum cliente encontrado.',
-                            style: TextStyle(color: Colors.grey, fontSize: 16),
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 0),
-                          itemCount: filteredCustomers.length,
-                          itemBuilder: (context, index) {
-                            final c = filteredCustomers[index];
-                            final totalComprado = totalCompradoFor(c);
-                            final totalPendente = totalPendenteFor(c);
+                ],
+              )
+            : Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // NOVO: BARRA DE PESQUISA NA TELA
+                        CustomSearchBar(
+                          hintText: 'Buscar Cliente pelo nome...',
+                          onChanged: (texto) {
+                            setState(() {
+                              _searchQuery = texto;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
 
-                            return Card(
-                              color: AppColors.surface,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: BorderSide(color: Colors.grey.shade800),
-                              ),
-                              child: ListTile(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          CustomerProfileScreen(customer: c),
+                        const Text(
+                          'Filtrar Clientes',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 16,
+                            ),
+                          ),
+                          initialValue: _filterOptions.contains(_selectedFilter)
+                              ? _selectedFilter
+                              : null,
+                          items: _filterOptions
+                              .map(
+                                (filter) => DropdownMenuItem(
+                                  value: filter,
+                                  child: Text(filter),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedFilter = value;
+                            });
+                          },
+                          isExpanded: true,
+                          hint: const Text('Ordenar por'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: filteredCustomers.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: const [
+                              SizedBox(
+                                height: 300,
+                                child: Center(
+                                  child: Text(
+                                    'Nenhum cliente encontrado.',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 16,
                                     ),
-                                  );
-                                },
-                                title: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        c.nome,
-                                        style: const TextStyle(
-                                          color: AppColors.textPrimary,
-                                          fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 0,
+                            ),
+                            itemCount: filteredCustomers.length,
+                            itemBuilder: (context, index) {
+                              final c = filteredCustomers[index];
+                              final totalComprado = totalCompradoFor(c);
+                              final totalPendente = totalPendenteFor(c);
+
+                              return Card(
+                                color: AppColors.surface,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(color: Colors.grey.shade800),
+                                ),
+                                child: ListTile(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            CustomerProfileScreen(customer: c),
+                                      ),
+                                    );
+                                  },
+                                  title: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          c.nome,
+                                          style: const TextStyle(
+                                            color: AppColors.textPrimary,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Flexible(
-                                      child: Text(
-                                        c.referencia.isEmpty
-                                            ? c.celular
-                                            : c.referencia,
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: Text(
+                                          c.referencia.isEmpty
+                                              ? c.celular
+                                              : c.referencia,
+                                          style: const TextStyle(
+                                            color: AppColors.textSecondary,
+                                            fontSize: 12,
+                                          ),
+                                          textAlign: TextAlign.right,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Total comprado: ${AppFormatters.formatCurrency(totalComprado)}',
                                         style: const TextStyle(
                                           color: AppColors.textSecondary,
                                           fontSize: 12,
                                         ),
-                                        textAlign: TextAlign.right,
-                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                    ),
-                                  ],
+                                      Text(
+                                        'Pendente: ${AppFormatters.formatCurrency(totalPendente)}',
+                                        style: const TextStyle(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.edit,
+                                            color: Colors.blue),
+                                        onPressed: () => _showEditDialog(c),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          color: Colors.redAccent,
+                                        ),
+                                        onPressed: () => _confirmDelete(c),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.message,
+                                            color: Colors.green),
+                                        onPressed: () =>
+                                            _openWhatsApp(c.celular),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Total comprado: ${AppFormatters.formatCurrency(totalComprado)}',
-                                      style: const TextStyle(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    Text(
-                                      'Pendente: ${AppFormatters.formatCurrency(totalPendente)}',
-                                      style: const TextStyle(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.edit,
-                                          color: Colors.blue),
-                                      onPressed: () => _showEditDialog(c),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.delete_outline,
-                                        color: Colors.redAccent,
-                                      ),
-                                      onPressed: () => _confirmDelete(c),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.message,
-                                          color: Colors.green),
-                                      onPressed: () => _openWhatsApp(c.celular),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddDialog(context),
         child: const Icon(Icons.person_add),

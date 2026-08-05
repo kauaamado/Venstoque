@@ -20,4 +20,6 @@ class ParcelaLocal {
   DateTime dataVencimento = DateTime.now();
   DateTime? dataPagamento;
   String status = 'pendente';
+  bool syncPending = false;
+  int syncRevision = 0;
 }

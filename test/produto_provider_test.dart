@@ -87,7 +87,25 @@ void main() {
     expect(updated!.nome, 'Produto atualizado');
     expect(updated.supabaseId, 'uuid-remoto');
     expect(updated.empresaId, empresaId);
+    expect(updated.syncPending, isTrue);
     expect(provider.products.single.nome, 'Produto atualizado');
+  });
+
+  test('mantém tombstone ao remover produto já sincronizado', () async {
+    final product = ProdutoLocal()
+      ..empresaId = empresaId
+      ..supabaseId = 'uuid-remoto'
+      ..nome = 'Produto remoto';
+    await isar.writeTxn(() => isar.produtoLocals.put(product));
+
+    final result = await provider.deleteProduct(product.id.toString());
+    final stored = await isar.produtoLocals.get(product.id);
+
+    expect(result, ProductDeleteResult.deleted);
+    expect(stored, isNotNull);
+    expect(stored!.pendingDelete, isTrue);
+    expect(stored.ativo, isFalse);
+    expect(provider.products, isEmpty);
   });
 
   test('registra entrada atualizando estoque e preços localmente', () async {

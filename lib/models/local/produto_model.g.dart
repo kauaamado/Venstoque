@@ -42,23 +42,38 @@ const ProdutoLocalSchema = CollectionSchema(
       name: r'nome',
       type: IsarType.string,
     ),
-    r'precoCusto': PropertySchema(
+    r'pendingDelete': PropertySchema(
       id: 5,
+      name: r'pendingDelete',
+      type: IsarType.bool,
+    ),
+    r'precoCusto': PropertySchema(
+      id: 6,
       name: r'precoCusto',
       type: IsarType.double,
     ),
     r'quantidadeEstoque': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'quantidadeEstoque',
       type: IsarType.long,
     ),
     r'supabaseId': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'supabaseId',
       type: IsarType.string,
     ),
+    r'syncPending': PropertySchema(
+      id: 9,
+      name: r'syncPending',
+      type: IsarType.bool,
+    ),
+    r'syncRevision': PropertySchema(
+      id: 10,
+      name: r'syncRevision',
+      type: IsarType.long,
+    ),
     r'valorVenda': PropertySchema(
-      id: 8,
+      id: 11,
       name: r'valorVenda',
       type: IsarType.double,
     )
@@ -139,10 +154,13 @@ void _produtoLocalSerialize(
   writer.writeString(offsets[2], object.empresaId);
   writer.writeString(offsets[3], object.fornecedor);
   writer.writeString(offsets[4], object.nome);
-  writer.writeDouble(offsets[5], object.precoCusto);
-  writer.writeLong(offsets[6], object.quantidadeEstoque);
-  writer.writeString(offsets[7], object.supabaseId);
-  writer.writeDouble(offsets[8], object.valorVenda);
+  writer.writeBool(offsets[5], object.pendingDelete);
+  writer.writeDouble(offsets[6], object.precoCusto);
+  writer.writeLong(offsets[7], object.quantidadeEstoque);
+  writer.writeString(offsets[8], object.supabaseId);
+  writer.writeBool(offsets[9], object.syncPending);
+  writer.writeLong(offsets[10], object.syncRevision);
+  writer.writeDouble(offsets[11], object.valorVenda);
 }
 
 ProdutoLocal _produtoLocalDeserialize(
@@ -158,10 +176,13 @@ ProdutoLocal _produtoLocalDeserialize(
   object.fornecedor = reader.readString(offsets[3]);
   object.id = id;
   object.nome = reader.readString(offsets[4]);
-  object.precoCusto = reader.readDouble(offsets[5]);
-  object.quantidadeEstoque = reader.readLong(offsets[6]);
-  object.supabaseId = reader.readStringOrNull(offsets[7]);
-  object.valorVenda = reader.readDouble(offsets[8]);
+  object.pendingDelete = reader.readBool(offsets[5]);
+  object.precoCusto = reader.readDouble(offsets[6]);
+  object.quantidadeEstoque = reader.readLong(offsets[7]);
+  object.supabaseId = reader.readStringOrNull(offsets[8]);
+  object.syncPending = reader.readBool(offsets[9]);
+  object.syncRevision = reader.readLong(offsets[10]);
+  object.valorVenda = reader.readDouble(offsets[11]);
   return object;
 }
 
@@ -183,12 +204,18 @@ P _produtoLocalDeserializeProp<P>(
     case 4:
       return (reader.readString(offset)) as P;
     case 5:
-      return (reader.readDouble(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 6:
-      return (reader.readLong(offset)) as P;
+      return (reader.readDouble(offset)) as P;
     case 7:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 8:
+      return (reader.readStringOrNull(offset)) as P;
+    case 9:
+      return (reader.readBool(offset)) as P;
+    case 10:
+      return (reader.readLong(offset)) as P;
+    case 11:
       return (reader.readDouble(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -1047,6 +1074,16 @@ extension ProdutoLocalQueryFilter
   }
 
   QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterFilterCondition>
+      pendingDeleteEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'pendingDelete',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterFilterCondition>
       precoCustoEqualTo(
     double value, {
     double epsilon = Query.epsilon,
@@ -1323,6 +1360,72 @@ extension ProdutoLocalQueryFilter
   }
 
   QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterFilterCondition>
+      syncPendingEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'syncPending',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterFilterCondition>
+      syncRevisionEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'syncRevision',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterFilterCondition>
+      syncRevisionGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'syncRevision',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterFilterCondition>
+      syncRevisionLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'syncRevision',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterFilterCondition>
+      syncRevisionBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'syncRevision',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterFilterCondition>
       valorVendaEqualTo(
     double value, {
     double epsilon = Query.epsilon,
@@ -1458,6 +1561,19 @@ extension ProdutoLocalQuerySortBy
     });
   }
 
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy> sortByPendingDelete() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'pendingDelete', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy>
+      sortByPendingDeleteDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'pendingDelete', Sort.desc);
+    });
+  }
+
   QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy> sortByPrecoCusto() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'precoCusto', Sort.asc);
@@ -1495,6 +1611,32 @@ extension ProdutoLocalQuerySortBy
       sortBySupabaseIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'supabaseId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy> sortBySyncPending() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncPending', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy>
+      sortBySyncPendingDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncPending', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy> sortBySyncRevision() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncRevision', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy>
+      sortBySyncRevisionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncRevision', Sort.desc);
     });
   }
 
@@ -1587,6 +1729,19 @@ extension ProdutoLocalQuerySortThenBy
     });
   }
 
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy> thenByPendingDelete() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'pendingDelete', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy>
+      thenByPendingDeleteDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'pendingDelete', Sort.desc);
+    });
+  }
+
   QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy> thenByPrecoCusto() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'precoCusto', Sort.asc);
@@ -1624,6 +1779,32 @@ extension ProdutoLocalQuerySortThenBy
       thenBySupabaseIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'supabaseId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy> thenBySyncPending() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncPending', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy>
+      thenBySyncPendingDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncPending', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy> thenBySyncRevision() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncRevision', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy>
+      thenBySyncRevisionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncRevision', Sort.desc);
     });
   }
 
@@ -1677,6 +1858,13 @@ extension ProdutoLocalQueryWhereDistinct
     });
   }
 
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QDistinct>
+      distinctByPendingDelete() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'pendingDelete');
+    });
+  }
+
   QueryBuilder<ProdutoLocal, ProdutoLocal, QDistinct> distinctByPrecoCusto() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'precoCusto');
@@ -1694,6 +1882,18 @@ extension ProdutoLocalQueryWhereDistinct
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'supabaseId', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QDistinct> distinctBySyncPending() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'syncPending');
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QDistinct> distinctBySyncRevision() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'syncRevision');
     });
   }
 
@@ -1742,6 +1942,12 @@ extension ProdutoLocalQueryProperty
     });
   }
 
+  QueryBuilder<ProdutoLocal, bool, QQueryOperations> pendingDeleteProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'pendingDelete');
+    });
+  }
+
   QueryBuilder<ProdutoLocal, double, QQueryOperations> precoCustoProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'precoCusto');
@@ -1758,6 +1964,18 @@ extension ProdutoLocalQueryProperty
   QueryBuilder<ProdutoLocal, String?, QQueryOperations> supabaseIdProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'supabaseId');
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, bool, QQueryOperations> syncPendingProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'syncPending');
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, int, QQueryOperations> syncRevisionProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'syncRevision');
     });
   }
 

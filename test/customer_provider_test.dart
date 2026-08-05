@@ -103,6 +103,24 @@ void main() {
     final updated = await isar.clienteLocals.get(currentTenant.id);
     expect(updated!.supabaseId, 'uuid-remoto');
     expect(updated.empresaId, empresaId);
+    expect(updated.syncPending, isTrue);
+  });
+
+  test('mantém tombstone ao remover cliente já sincronizado', () async {
+    final customer = ClienteLocal()
+      ..empresaId = empresaId
+      ..supabaseId = 'uuid-remoto'
+      ..nome = 'Cliente remoto';
+    await isar.writeTxn(() => isar.clienteLocals.put(customer));
+
+    final result = await provider.deleteCustomer(customer.id.toString());
+    final stored = await isar.clienteLocals.get(customer.id);
+
+    expect(result, CustomerDeleteResult.deleted);
+    expect(stored, isNotNull);
+    expect(stored!.pendingDelete, isTrue);
+    expect(stored.ativo, isFalse);
+    expect(provider.customers, isEmpty);
   });
 
   test('remove cliente sem vendas e desativa cliente vinculado', () async {

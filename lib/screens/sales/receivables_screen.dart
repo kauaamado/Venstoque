@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/sale_provider.dart';
+import '../../providers/sync_controller.dart';
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
+import '../../utils/sync_feedback.dart';
 import '../../widgets/custom_search_bar.dart';
+import '../../widgets/sync_status_button.dart';
 
 class ReceivablesScreen extends StatefulWidget {
   const ReceivablesScreen({super.key});
@@ -32,6 +35,14 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
     });
   }
 
+  Future<void> _refreshSales() async {
+    final report = await context.read<SyncController>().refreshSales();
+    if (!mounted) return;
+    await context.read<SaleProvider>().loadSales();
+    if (!mounted) return;
+    showSyncFeedback(context, report);
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<SaleProvider>();
@@ -46,79 +57,103 @@ class _ReceivablesScreenState extends State<ReceivablesScreen> {
         title: const Text('Contas a Receber'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions: const [SyncStatusButton()],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CustomSearchBar(
-                  hintText: 'Buscar conta pelo nome do cliente...',
-                  onChanged: (value) {
-                    setState(() => _searchQuery = value);
-                  },
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Filtrar Contas',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: _filterOptions.contains(_selectedFilter)
-                      ? _selectedFilter
-                      : null,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: 12,
-                      horizontal: 16,
-                    ),
+      body: RefreshIndicator(
+        onRefresh: _refreshSales,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CustomSearchBar(
+                    hintText: 'Buscar conta pelo nome do cliente...',
+                    onChanged: (value) {
+                      setState(() => _searchQuery = value);
+                    },
                   ),
-                  items: _filterOptions
-                      .map(
-                        (filter) => DropdownMenuItem(
-                          value: filter,
-                          child: Text(filter),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() => _selectedFilter = value);
-                  },
-                  isExpanded: true,
-                  hint: const Text('Ordenar por'),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: provider.isLoading && provider.receivables.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : receivables.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'Nenhuma conta a receber.',
-                          style: TextStyle(color: AppColors.textSecondary),
-                        ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: receivables.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          return _buildReceivableCard(
-                            context,
-                            receivables[index],
-                          );
-                        },
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Filtrar Contas',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: _filterOptions.contains(_selectedFilter)
+                        ? _selectedFilter
+                        : null,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
-          ),
-        ],
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 16,
+                      ),
+                    ),
+                    items: _filterOptions
+                        .map(
+                          (filter) => DropdownMenuItem(
+                            value: filter,
+                            child: Text(filter),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() => _selectedFilter = value);
+                    },
+                    isExpanded: true,
+                    hint: const Text('Ordenar por'),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: provider.isLoading && provider.receivables.isEmpty
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: const [
+                        SizedBox(
+                          height: 300,
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                      ],
+                    )
+                  : receivables.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: const [
+                            SizedBox(
+                              height: 260,
+                              child: Center(
+                                child: Text(
+                                  'Nenhuma conta a receber.',
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : ListView.separated(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: receivables.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            return _buildReceivableCard(
+                              context,
+                              receivables[index],
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
       ),
     );
   }

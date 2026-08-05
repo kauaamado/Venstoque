@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'providers/customer_provider.dart';
 import 'providers/sale_provider.dart';
 import 'providers/stock_provider.dart';
+import 'providers/sync_controller.dart';
 import 'screens/customers/customer_list_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/sales/new_sale_screen.dart';
@@ -17,9 +18,8 @@ import 'screens/sales/receivables_screen.dart';
 import 'screens/stock/stock_management_screen.dart';
 import 'services/local_database.dart';
 import 'services/sync_service.dart';
+import 'services/tenant_resolver.dart';
 import 'utils/constants.dart';
-
-const String _syncTestEmpresaId = '07039448-04c1-4ecd-94f0-65176475868c';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,13 +53,123 @@ Future<void> main() async {
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-  runApp(VenstoqueApp(isar: isar));
+  runApp(VenstoqueBootstrap(isar: isar));
+}
+
+class VenstoqueBootstrap extends StatefulWidget {
+  const VenstoqueBootstrap({super.key, required this.isar});
+
+  final Isar isar;
+
+  @override
+  State<VenstoqueBootstrap> createState() => _VenstoqueBootstrapState();
+}
+
+class _VenstoqueBootstrapState extends State<VenstoqueBootstrap> {
+  late TenantResolution _resolution;
+  bool _isRetrying = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveTenant();
+  }
+
+  void _resolveTenant() {
+    _resolution = TenantResolver.resolve(
+      Supabase.instance.client.auth.currentUser,
+    );
+  }
+
+  Future<void> _retry() async {
+    if (_isRetrying) return;
+    setState(() => _isRetrying = true);
+    try {
+      if (Supabase.instance.client.auth.currentSession != null) {
+        await Supabase.instance.client.auth.refreshSession();
+      }
+    } catch (error) {
+      debugPrint('Erro ao atualizar a sessão: $error');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _resolveTenant();
+          _isRetrying = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final empresaId = _resolution.empresaId;
+    if (empresaId != null) {
+      return VenstoqueApp(isar: widget.isar, empresaId: empresaId);
+    }
+
+    return MaterialApp(
+      title: 'Venstoque',
+      debugShowCheckedModeBanner: false,
+      themeMode: ThemeMode.dark,
+      darkTheme: _buildDarkTheme(),
+      home: Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.business_outlined,
+                    size: 64,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Não foi possível identificar sua empresa',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _resolution.message ?? 'Tente novamente mais tarde.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: _isRetrying ? null : _retry,
+                    icon: _isRetrying
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.refresh),
+                    label: const Text('Tentar novamente'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class VenstoqueApp extends StatelessWidget {
-  const VenstoqueApp({super.key, required this.isar});
+  const VenstoqueApp({
+    super.key,
+    required this.isar,
+    required this.empresaId,
+  });
 
   final Isar isar;
+  final String empresaId;
 
   @override
   Widget build(BuildContext context) {
@@ -68,56 +178,65 @@ class VenstoqueApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => CustomerProvider(
             isar,
-            empresaId: _syncTestEmpresaId,
+            empresaId: empresaId,
           ),
         ),
         ChangeNotifierProvider(
           create: (_) => StockProvider(
             isar,
-            empresaId: _syncTestEmpresaId,
+            empresaId: empresaId,
           ),
         ),
         ChangeNotifierProvider(
           create: (_) => SaleProvider(
             isar,
-            empresaId: _syncTestEmpresaId,
+            empresaId: empresaId,
           ),
         ),
         Provider<SyncService>(
           create: (_) => SyncService(
             isar,
-            empresaId: _syncTestEmpresaId,
+            empresaId: empresaId,
           ),
+        ),
+        ChangeNotifierProvider<SyncController>(
+          lazy: false,
+          create: (context) =>
+              SyncController(context.read<SyncService>())..start(),
         ),
       ],
       child: MaterialApp(
         title: 'Venstoque',
         debugShowCheckedModeBanner: false,
         themeMode: ThemeMode.dark,
-        darkTheme: ThemeData(
-          brightness: Brightness.dark,
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: AppColors.primary,
-            brightness: Brightness.dark,
-            primary: AppColors.primary,
-            secondary: AppColors.primaryDark,
-          ),
-          scaffoldBackgroundColor: Colors.black,
-          textTheme: GoogleFonts.interTextTheme(
-            ThemeData(brightness: Brightness.dark).textTheme,
-          ),
-          appBarTheme: const AppBarTheme(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            centerTitle: true,
-            elevation: 0,
-          ),
-        ),
+        darkTheme: _buildDarkTheme(),
         home: const MainNavigation(),
       ),
     );
   }
+}
+
+ThemeData _buildDarkTheme() {
+  return ThemeData(
+    brightness: Brightness.dark,
+    useMaterial3: true,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: AppColors.primary,
+      brightness: Brightness.dark,
+      primary: AppColors.primary,
+      secondary: AppColors.primaryDark,
+    ),
+    scaffoldBackgroundColor: Colors.black,
+    textTheme: GoogleFonts.interTextTheme(
+      ThemeData(brightness: Brightness.dark).textTheme,
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppColors.primary,
+      foregroundColor: Colors.white,
+      centerTitle: true,
+      elevation: 0,
+    ),
+  );
 }
 
 class MainNavigation extends StatefulWidget {
