@@ -17,18 +17,72 @@ class AppFormatters {
 
 class WhatsAppHelper {
   static Future<void> sendMessage(String telefone, String mensagem) async {
-    // Remove caracteres não numéricos
-    String fone = telefone.replaceAll(RegExp(r'[^\d]'), '');
-    // Adiciona o DDI 55 se não tiver
-    if (fone.length <= 11) fone = '55$fone';
-
-    // Mudança aqui: Usando a API direta em vez do wa.me
-    final String textEncoded = Uri.encodeComponent(mensagem);
-    final Uri url = Uri.parse(
-        "https://api.whatsapp.com/send?phone=$fone&text=$textEncoded");
+    final url = buildConversationUri(telefone, mensagem: mensagem);
 
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      throw Exception('Não foi possível abrir o WhatsApp');
+      throw const WhatsAppException('Não foi possível abrir o WhatsApp.');
     }
   }
+
+  static Future<void> openConversation(String telefone) {
+    return sendMessage(telefone, '');
+  }
+
+  static Uri buildConversationUri(
+    String telefone, {
+    String mensagem = '',
+  }) {
+    final phone = _normalizeBrazilianPhone(telefone);
+    return Uri.https(
+      'api.whatsapp.com',
+      '/send',
+      {
+        'phone': phone,
+        if (mensagem.trim().isNotEmpty) 'text': mensagem,
+      },
+    );
+  }
+
+  static String _normalizeBrazilianPhone(String telefone) {
+    var digits = telefone.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) {
+      throw const WhatsAppException(
+        'Cadastre um celular antes de enviar uma mensagem.',
+      );
+    }
+
+    if (digits.startsWith('00')) digits = digits.substring(2);
+
+    late final String nationalNumber;
+    if (digits.startsWith('55') &&
+        (digits.length == 12 || digits.length == 13)) {
+      nationalNumber = digits.substring(2);
+    } else {
+      if (digits.startsWith('0') &&
+          (digits.length == 11 || digits.length == 12)) {
+        digits = digits.substring(1);
+      }
+      nationalNumber = digits;
+    }
+
+    final hasValidLength =
+        nationalNumber.length == 10 || nationalNumber.length == 11;
+    final hasOnlyRepeatedDigits = nationalNumber.split('').toSet().length == 1;
+    if (!hasValidLength || hasOnlyRepeatedDigits) {
+      throw const WhatsAppException(
+        'Informe um celular válido com DDD.',
+      );
+    }
+
+    return '55$nationalNumber';
+  }
+}
+
+class WhatsAppException implements Exception {
+  const WhatsAppException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }

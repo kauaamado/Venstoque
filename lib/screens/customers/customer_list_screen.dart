@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
+
+import '../../models/cliente_model.dart';
 import '../../providers/customer_provider.dart';
 import '../../providers/sale_provider.dart';
 import '../../providers/sync_controller.dart';
-import '../../models/cliente_model.dart';
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
-import 'customer_profile_screen.dart';
-import '../../widgets/custom_search_bar.dart'; // NOVO IMPORT
-import '../../utils/search_helper.dart'; // NOVO IMPORT (verifique a ortografia)
+import '../../utils/search_helper.dart';
 import '../../utils/sync_feedback.dart';
+import '../../widgets/custom_search_bar.dart';
 import '../../widgets/sync_status_button.dart';
+import 'customer_profile_screen.dart';
 
 class CustomerListScreen extends StatefulWidget {
   const CustomerListScreen({super.key});
@@ -22,7 +22,7 @@ class CustomerListScreen extends StatefulWidget {
 
 class _CustomerListScreenState extends State<CustomerListScreen> {
   String? _selectedFilter;
-  String _searchQuery = ''; // NOVO: Variável da busca
+  String _searchQuery = '';
 
   final List<String> _filterOptions = const [
     'Maiores Devedores',
@@ -122,7 +122,6 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // NOVO: BARRA DE PESQUISA NA TELA
                         CustomSearchBar(
                           hintText: 'Buscar Cliente pelo nome...',
                           onChanged: (texto) {
@@ -132,7 +131,6 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
-
                         const Text(
                           'Filtrar Clientes',
                           style: TextStyle(
@@ -308,24 +306,40 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     );
   }
 
-  void _openWhatsApp(String phone) async {
-    final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
-    final url = Uri.parse("https://wa.me/55$cleanPhone");
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
+  Future<void> _openWhatsApp(String phone) async {
+    try {
+      await WhatsAppHelper.openConversation(phone);
+    } on WhatsAppException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.message),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      debugPrint('Erro inesperado ao abrir conversa no WhatsApp: $error');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível abrir o WhatsApp.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
   void _showAddDialog(BuildContext context) {
+    final provider = context.read<CustomerProvider>();
     final nomeController = TextEditingController();
     final phoneController = TextEditingController();
     final referenciaController = TextEditingController();
     final observacoesController = TextEditingController();
 
-    showDialog(
+    showDialog<void>(
       context: context,
-      barrierDismissible: false, // NOVO: Trava o modal de adicionar
-      builder: (context) => AlertDialog(
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Novo Cliente'),
         titleTextStyle: const TextStyle(
             fontSize: 28,
@@ -357,7 +371,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child:
                   const Text('Cancelar', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
@@ -369,12 +383,12 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                 observacoes: observacoesController.text,
               );
               try {
-                await context.read<CustomerProvider>().addCustomer(c);
-                if (!context.mounted) return;
-                Navigator.pop(context);
+                await provider.addCustomer(c);
+                if (!dialogContext.mounted) return;
+                Navigator.pop(dialogContext);
               } catch (error) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
+                if (!dialogContext.mounted) return;
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
                   SnackBar(content: Text('Erro ao salvar cliente: $error')),
                 );
               }
@@ -383,10 +397,16 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
           ),
         ],
       ),
-    );
+    ).whenComplete(() {
+      nomeController.dispose();
+      phoneController.dispose();
+      referenciaController.dispose();
+      observacoesController.dispose();
+    });
   }
 
   void _showEditDialog(ClienteModel cliente) {
+    final provider = context.read<CustomerProvider>();
     final nomeController = TextEditingController(text: cliente.nome);
     final phoneController = TextEditingController(text: cliente.celular);
     final referenciaController =
@@ -394,10 +414,10 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     final observacoesController =
         TextEditingController(text: cliente.observacoes);
 
-    showDialog(
+    showDialog<void>(
       context: context,
-      barrierDismissible: false, // NOVO: Trava o modal de editar
-      builder: (context) => AlertDialog(
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Editar Cliente'),
         content: SingleChildScrollView(
           child: Column(
@@ -425,7 +445,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child:
                   const Text('Cancelar', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
@@ -442,12 +462,12 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
               );
 
               try {
-                await context.read<CustomerProvider>().updateCustomer(c);
-                if (!context.mounted) return;
-                Navigator.pop(context);
+                await provider.updateCustomer(c);
+                if (!dialogContext.mounted) return;
+                Navigator.pop(dialogContext);
               } catch (error) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
+                if (!dialogContext.mounted) return;
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
                   SnackBar(content: Text('Erro ao atualizar cliente: $error')),
                 );
               }
@@ -456,7 +476,12 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
           ),
         ],
       ),
-    );
+    ).whenComplete(() {
+      nomeController.dispose();
+      phoneController.dispose();
+      referenciaController.dispose();
+      observacoesController.dispose();
+    });
   }
 
   Future<void> _confirmDelete(ClienteModel cliente) async {
