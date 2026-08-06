@@ -52,6 +52,11 @@ app.*.map.json
 
 # Secrets
 .env
+.env.migration
 
 # Planejamento local
 /PLAN.md
+
+# Dados legados
+db.json
+database-model.json

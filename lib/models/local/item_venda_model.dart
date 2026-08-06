@@ -12,6 +12,18 @@ class ItemVendaLocal {
   @Index()
   String? supabaseId;
 
+  @Index()
+  String? empresaId;
+
+  @Index()
+  int? vendaLocalId;
+
+  @Index()
+  int? produtoLocalId;
+
+  int rowVersion = 0;
+  int bootstrapGeneration = 0;
+
   final venda = IsarLink<VendaLocal>();
   final produto = IsarLink<ProdutoLocal>();
   int quantidade = 0;

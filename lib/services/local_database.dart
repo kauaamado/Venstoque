@@ -6,16 +6,20 @@ import '../models/local/item_venda_model.dart';
 import '../models/local/parcela_model.dart';
 import '../models/local/produto_model.dart';
 import '../models/local/venda_model.dart';
+import '../models/local/sync_state_model.dart';
 
 class LocalDatabase {
   static const String _instanceName = 'venstoque';
 
-  static const List<CollectionSchema<dynamic>> _schemas = [
+  static const List<CollectionSchema<dynamic>> schemas = [
     ClienteLocalSchema,
     ProdutoLocalSchema,
     VendaLocalSchema,
     ItemVendaLocalSchema,
     ParcelaLocalSchema,
+    SyncStateLocalSchema,
+    SyncMutationLocalSchema,
+    SyncConflictLocalSchema,
   ];
 
   static Future<Isar> init({String? directory}) async {
@@ -26,7 +30,7 @@ class LocalDatabase {
         directory ?? (await getApplicationSupportDirectory()).path;
 
     return Isar.open(
-      _schemas,
+      schemas,
       directory: databaseDirectory,
       name: _instanceName,
     );

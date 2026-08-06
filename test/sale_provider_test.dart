@@ -8,6 +8,7 @@ import 'package:venstoque/models/local/item_venda_model.dart';
 import 'package:venstoque/models/local/parcela_model.dart';
 import 'package:venstoque/models/local/produto_model.dart';
 import 'package:venstoque/models/local/venda_model.dart';
+import 'package:venstoque/models/local/sync_state_model.dart';
 import 'package:venstoque/models/parcela_model.dart';
 import 'package:venstoque/models/produto_model.dart';
 import 'package:venstoque/providers/sale_provider.dart';
@@ -34,6 +35,9 @@ void main() {
         VendaLocalSchema,
         ItemVendaLocalSchema,
         ParcelaLocalSchema,
+        SyncStateLocalSchema,
+        SyncMutationLocalSchema,
+        SyncConflictLocalSchema,
       ],
       directory: directory.path,
       name: 'sale_provider_${DateTime.now().microsecondsSinceEpoch}',
@@ -216,7 +220,7 @@ void main() {
     expect(provider.sales.single.valorTotal, 25);
   });
 
-  test('marca estoque e pagamento sincronizados como pendentes', () async {
+  test('enfileira delta de estoque e pagamento sincronizados', () async {
     final customer = ClienteLocal()
       ..empresaId = empresaId
       ..supabaseId = 'cliente-remoto'
@@ -243,7 +247,14 @@ void main() {
     ]);
 
     final storedProduct = await isar.produtoLocals.get(product.id);
-    expect(storedProduct!.syncPending, isTrue);
+    expect(storedProduct!.syncPending, isFalse);
+    expect(
+      await isar.syncMutationLocals
+          .filter()
+          .entityEqualTo('venda_graph')
+          .count(),
+      1,
+    );
 
     final installment = await isar.parcelaLocals.where().findFirst();
     await isar.writeTxn(() async {

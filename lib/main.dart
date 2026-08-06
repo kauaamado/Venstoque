@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'providers/auth_controller.dart';
+import 'models/sync_report.dart';
 import 'providers/customer_provider.dart';
 import 'providers/sale_provider.dart';
 import 'providers/stock_provider.dart';
@@ -19,10 +22,12 @@ import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/sales/new_sale_screen.dart';
 import 'screens/sales/receivables_screen.dart';
 import 'screens/stock/stock_management_screen.dart';
+import 'screens/sync/initial_sync_screen.dart';
 import 'services/auth_gateway.dart';
 import 'services/local_database.dart';
 import 'services/sync_gateway.dart';
 import 'services/sync_service.dart';
+import 'services/session_coordinator.dart';
 import 'services/tenant_resolver.dart';
 import 'utils/constants.dart';
 
@@ -129,19 +134,30 @@ class VenstoqueApp extends StatelessWidget {
             empresaId: empresaId,
           ),
         ),
-        Provider<SyncGateway>(
+        Provider<SyncService>(
           create: (_) => SyncService(
             isar,
             empresaId: empresaId,
           ),
+        ),
+        Provider<SyncGateway>(
+          create: (context) => context.read<SyncService>(),
         ),
         ChangeNotifierProvider<SyncController>(
           lazy: false,
           create: (context) =>
               SyncController(context.read<SyncGateway>())..start(),
         ),
+        Provider<SessionCoordinator>(
+          create: (context) => SessionCoordinator(
+            isar: isar,
+            tenantId: empresaId,
+            syncGateway: context.read<SyncGateway>(),
+            authController: context.read<AuthController>(),
+          ),
+        ),
       ],
-      child: const _VenstoqueMaterialApp(home: MainNavigation()),
+      child: const _VenstoqueMaterialApp(home: BootstrapGate()),
     );
   }
 }
@@ -191,6 +207,72 @@ class MainNavigation extends StatefulWidget {
 
   @override
   State<MainNavigation> createState() => _MainNavigationState();
+}
+
+class BootstrapGate extends StatefulWidget {
+  const BootstrapGate({super.key});
+
+  @override
+  State<BootstrapGate> createState() => _BootstrapGateState();
+}
+
+class _BootstrapGateState extends State<BootstrapGate> {
+  bool _ready = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final controller = context.read<SyncController>();
+      if (context.read<CustomerProvider>().customers.isNotEmpty ||
+          context.read<StockProvider>().products.isNotEmpty) {
+        setState(() => _ready = true);
+        return;
+      }
+      unawaited(controller.syncNow().then((report) {
+        if (!mounted) return;
+        if (report.outcome == SyncOutcome.success ||
+            context.read<CustomerProvider>().customers.isNotEmpty ||
+            context.read<StockProvider>().products.isNotEmpty) {
+          setState(() => _ready = true);
+        }
+      }));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = context.watch<SyncController>();
+    final customers = context.watch<CustomerProvider>();
+    final stock = context.watch<StockProvider>();
+    if (_ready || customers.customers.isNotEmpty || stock.products.isNotEmpty) {
+      return const MainNavigation();
+    }
+    final message = switch (controller.status) {
+      SyncStatus.syncing => 'Baixando clientes, produtos e vendas...',
+      SyncStatus.offline =>
+        'Sem conexão. Conecte-se e tente novamente para preparar o uso offline.',
+      SyncStatus.partialFailure =>
+        'A preparação encontrou pendências. Você pode tentar novamente.',
+      _ => 'Verificando a sessão e preparando o banco local...',
+    };
+    return InitialSyncScreen(
+      isSyncing: controller.isSyncing,
+      statusMessage: message,
+      lastReport: controller.lastReport,
+      onRetry: () {
+        unawaited(controller.syncNow().then((report) {
+          if (!mounted) return;
+          if (report.outcome == SyncOutcome.success ||
+              customers.customers.isNotEmpty ||
+              stock.products.isNotEmpty) {
+            setState(() => _ready = true);
+          }
+        }));
+      },
+    );
+  }
 }
 
 class _MainNavigationState extends State<MainNavigation> {

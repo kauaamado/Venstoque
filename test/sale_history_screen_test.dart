@@ -2,54 +2,48 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
-import 'package:venstoque/models/produto_model.dart';
 import 'package:venstoque/models/sync_report.dart';
-import 'package:venstoque/models/venda_model.dart';
 import 'package:venstoque/providers/sale_provider.dart';
-import 'package:venstoque/providers/stock_provider.dart';
 import 'package:venstoque/providers/sync_controller.dart';
-import 'package:venstoque/screens/dashboard/dashboard_screen.dart';
+import 'package:venstoque/screens/sales/sale_history_screen.dart';
 import 'package:venstoque/services/sync_gateway.dart';
-import 'package:venstoque/widgets/sync_status_button.dart';
+import 'package:venstoque/utils/formatters.dart';
 
 void main() {
   setUpAll(() => initializeDateFormatting('pt_BR'));
 
-  testWidgets('mantém providers disponíveis em modais e novas rotas',
-      (tester) async {
+  testWidgets('exibe total, lucro e valor pendente por mês', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(360, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     final sales = _FakeSaleProvider();
-    final stock = _FakeStockProvider();
     final sync = SyncController(_FakeSyncGateway());
     addTearDown(sales.dispose);
-    addTearDown(stock.dispose);
     addTearDown(sync.dispose);
 
     await tester.pumpWidget(
       MultiProvider(
         providers: [
           ChangeNotifierProvider<SaleProvider>.value(value: sales),
-          ChangeNotifierProvider<StockProvider>.value(value: stock),
           ChangeNotifierProvider<SyncController>.value(value: sync),
         ],
-        child: const MaterialApp(home: DashboardScreen()),
+        child: const MaterialApp(home: SalesHistoryScreen()),
       ),
     );
-    await tester.pump();
-
-    await tester.tap(find.byType(SyncStatusButton));
     await tester.pumpAndSettle();
 
-    expect(find.text('Sincronizar agora'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-
-    await tester.tap(find.byType(ModalBarrier).last);
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('VER HISTÓRICO DE VENDAS'));
-    await tester.pump();
-    await tester.tap(find.text('VER HISTÓRICO DE VENDAS'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Histórico de Vendas (últimos 12 meses)'), findsOneWidget);
+    expect(
+      find.text('Total: ${AppFormatters.formatCurrency(100)}'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Lucro: ${AppFormatters.formatCurrency(50)}'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Pendente: ${AppFormatters.formatCurrency(80)}'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 }
@@ -59,13 +53,35 @@ class _FakeSaleProvider extends ChangeNotifier implements SaleProvider {
   bool get isLoading => false;
 
   @override
-  List<Map<String, dynamic>> get receivables => const [];
-
-  @override
-  List<VendaModel> get sales => const [];
-
-  @override
-  List<Map<String, dynamic>> get salesHistory => const [];
+  List<Map<String, dynamic>> get salesHistory => [
+        {
+          'data_venda': DateTime(2026, 8, 10).toIso8601String(),
+          'valor_total': 100.0,
+          'tipo_pagamento': 'parcelado',
+          'clientes': {'nome': 'Cliente'},
+          'itens_venda': [
+            {
+              'quantidade': 1,
+              'custo_unitario': 50.0,
+              'produtos': {'nome': 'Produto'},
+            },
+          ],
+          'parcelas': [
+            {
+              'numero_parcela': 1,
+              'valor': 80.0,
+              'data_vencimento': DateTime(2026, 9, 10).toIso8601String(),
+              'status': 'pendente',
+            },
+            {
+              'numero_parcela': 2,
+              'valor': 20.0,
+              'data_vencimento': DateTime(2026, 9, 20).toIso8601String(),
+              'status': 'pago',
+            },
+          ],
+        },
+      ];
 
   @override
   Future<void> loadSales() async {}
@@ -74,22 +90,11 @@ class _FakeSaleProvider extends ChangeNotifier implements SaleProvider {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class _FakeStockProvider extends ChangeNotifier implements StockProvider {
-  @override
-  List<ProdutoModel> get products => const [];
-
-  @override
-  Future<void> loadProducts() async {}
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
 class _FakeSyncGateway implements SyncGateway {
   SyncReport get _report {
-    final now = DateTime(2026, 8, 4, 10);
+    final now = DateTime(2026, 8, 6);
     return SyncReport(
-      scope: SyncScope.all,
+      scope: SyncScope.sales,
       startedAt: now,
       completedAt: now,
       pushed: 0,

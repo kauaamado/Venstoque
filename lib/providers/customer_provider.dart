@@ -6,6 +6,7 @@ import 'package:isar_community/isar.dart';
 import '../models/cliente_model.dart';
 import '../models/local/cliente_model.dart';
 import '../models/local/venda_model.dart';
+import '../services/sync_mutation_queue.dart';
 
 enum CustomerDeleteResult { deleted, deactivated }
 
@@ -65,7 +66,10 @@ class CustomerProvider with ChangeNotifier {
         ..empresaId = _empresaId;
       _applyModel(local, cliente);
 
-      await _isar.writeTxn(() => _isar.clienteLocals.put(local));
+      await _isar.writeTxn(() async {
+        await _isar.clienteLocals.put(local);
+        await SyncMutationQueue.queueCliente(_isar, _empresaId, local);
+      });
     });
   }
 
@@ -85,6 +89,7 @@ class CustomerProvider with ChangeNotifier {
           ..syncRevision = current.syncRevision + 1
           ..syncPending = current.supabaseId != null;
         await _isar.clienteLocals.put(current);
+        await SyncMutationQueue.queueCliente(_isar, _empresaId, current);
       });
     });
   }
@@ -111,6 +116,7 @@ class CustomerProvider with ChangeNotifier {
             ..syncRevision = current.syncRevision + 1
             ..syncPending = current.supabaseId != null;
           await _isar.clienteLocals.put(current);
+          await SyncMutationQueue.queueCliente(_isar, _empresaId, current);
           result = CustomerDeleteResult.deactivated;
         } else if (current.supabaseId != null) {
           current
@@ -119,6 +125,7 @@ class CustomerProvider with ChangeNotifier {
             ..syncRevision = current.syncRevision + 1
             ..syncPending = false;
           await _isar.clienteLocals.put(current);
+          await SyncMutationQueue.queueCliente(_isar, _empresaId, current);
           result = CustomerDeleteResult.deleted;
         } else {
           await _isar.clienteLocals.delete(localId);

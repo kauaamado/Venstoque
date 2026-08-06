@@ -14,8 +14,19 @@ class VendaLocal {
   @Index()
   String? empresaId;
 
-  final cliente = IsarLink<ClienteLocal>();
+  @Index()
   DateTime dataVenda = DateTime.now();
+
+  @Index()
+  String? clienteLocalId;
+
+  String? syncOperationId;
+  bool syncPending = false;
+  int syncRevision = 0;
+  int rowVersion = 0;
+  int bootstrapGeneration = 0;
+
+  final cliente = IsarLink<ClienteLocal>();
   double valorTotal = 0;
   double valorEntrada = 0;
   double desconto = 0;

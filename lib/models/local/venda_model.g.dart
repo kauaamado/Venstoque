@@ -17,48 +17,78 @@ const VendaLocalSchema = CollectionSchema(
   name: r'VendaLocal',
   id: 5162636752435704399,
   properties: {
-    r'dataVenda': PropertySchema(
+    r'bootstrapGeneration': PropertySchema(
       id: 0,
+      name: r'bootstrapGeneration',
+      type: IsarType.long,
+    ),
+    r'clienteLocalId': PropertySchema(
+      id: 1,
+      name: r'clienteLocalId',
+      type: IsarType.string,
+    ),
+    r'dataVenda': PropertySchema(
+      id: 2,
       name: r'dataVenda',
       type: IsarType.dateTime,
     ),
     r'desconto': PropertySchema(
-      id: 1,
+      id: 3,
       name: r'desconto',
       type: IsarType.double,
     ),
     r'empresaId': PropertySchema(
-      id: 2,
+      id: 4,
       name: r'empresaId',
       type: IsarType.string,
     ),
     r'legacyId': PropertySchema(
-      id: 3,
+      id: 5,
       name: r'legacyId',
       type: IsarType.long,
     ),
     r'observacoes': PropertySchema(
-      id: 4,
+      id: 6,
       name: r'observacoes',
       type: IsarType.string,
     ),
+    r'rowVersion': PropertySchema(
+      id: 7,
+      name: r'rowVersion',
+      type: IsarType.long,
+    ),
     r'supabaseId': PropertySchema(
-      id: 5,
+      id: 8,
       name: r'supabaseId',
       type: IsarType.string,
     ),
+    r'syncOperationId': PropertySchema(
+      id: 9,
+      name: r'syncOperationId',
+      type: IsarType.string,
+    ),
+    r'syncPending': PropertySchema(
+      id: 10,
+      name: r'syncPending',
+      type: IsarType.bool,
+    ),
+    r'syncRevision': PropertySchema(
+      id: 11,
+      name: r'syncRevision',
+      type: IsarType.long,
+    ),
     r'tipoPagamento': PropertySchema(
-      id: 6,
+      id: 12,
       name: r'tipoPagamento',
       type: IsarType.string,
     ),
     r'valorEntrada': PropertySchema(
-      id: 7,
+      id: 13,
       name: r'valorEntrada',
       type: IsarType.double,
     ),
     r'valorTotal': PropertySchema(
-      id: 8,
+      id: 14,
       name: r'valorTotal',
       type: IsarType.double,
     )
@@ -94,6 +124,32 @@ const VendaLocalSchema = CollectionSchema(
           caseSensitive: true,
         )
       ],
+    ),
+    r'dataVenda': IndexSchema(
+      id: 7553672236023829952,
+      name: r'dataVenda',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'dataVenda',
+          type: IndexType.value,
+          caseSensitive: false,
+        )
+      ],
+    ),
+    r'clienteLocalId': IndexSchema(
+      id: 3867318844164730876,
+      name: r'clienteLocalId',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'clienteLocalId',
+          type: IndexType.hash,
+          caseSensitive: true,
+        )
+      ],
     )
   },
   links: {
@@ -118,6 +174,12 @@ int _vendaLocalEstimateSize(
 ) {
   var bytesCount = offsets.last;
   {
+    final value = object.clienteLocalId;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
     final value = object.empresaId;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
@@ -126,6 +188,12 @@ int _vendaLocalEstimateSize(
   bytesCount += 3 + object.observacoes.length * 3;
   {
     final value = object.supabaseId;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
+    final value = object.syncOperationId;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
     }
@@ -140,15 +208,21 @@ void _vendaLocalSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeDateTime(offsets[0], object.dataVenda);
-  writer.writeDouble(offsets[1], object.desconto);
-  writer.writeString(offsets[2], object.empresaId);
-  writer.writeLong(offsets[3], object.legacyId);
-  writer.writeString(offsets[4], object.observacoes);
-  writer.writeString(offsets[5], object.supabaseId);
-  writer.writeString(offsets[6], object.tipoPagamento);
-  writer.writeDouble(offsets[7], object.valorEntrada);
-  writer.writeDouble(offsets[8], object.valorTotal);
+  writer.writeLong(offsets[0], object.bootstrapGeneration);
+  writer.writeString(offsets[1], object.clienteLocalId);
+  writer.writeDateTime(offsets[2], object.dataVenda);
+  writer.writeDouble(offsets[3], object.desconto);
+  writer.writeString(offsets[4], object.empresaId);
+  writer.writeLong(offsets[5], object.legacyId);
+  writer.writeString(offsets[6], object.observacoes);
+  writer.writeLong(offsets[7], object.rowVersion);
+  writer.writeString(offsets[8], object.supabaseId);
+  writer.writeString(offsets[9], object.syncOperationId);
+  writer.writeBool(offsets[10], object.syncPending);
+  writer.writeLong(offsets[11], object.syncRevision);
+  writer.writeString(offsets[12], object.tipoPagamento);
+  writer.writeDouble(offsets[13], object.valorEntrada);
+  writer.writeDouble(offsets[14], object.valorTotal);
 }
 
 VendaLocal _vendaLocalDeserialize(
@@ -158,16 +232,22 @@ VendaLocal _vendaLocalDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = VendaLocal();
-  object.dataVenda = reader.readDateTime(offsets[0]);
-  object.desconto = reader.readDouble(offsets[1]);
-  object.empresaId = reader.readStringOrNull(offsets[2]);
+  object.bootstrapGeneration = reader.readLong(offsets[0]);
+  object.clienteLocalId = reader.readStringOrNull(offsets[1]);
+  object.dataVenda = reader.readDateTime(offsets[2]);
+  object.desconto = reader.readDouble(offsets[3]);
+  object.empresaId = reader.readStringOrNull(offsets[4]);
   object.id = id;
-  object.legacyId = reader.readLongOrNull(offsets[3]);
-  object.observacoes = reader.readString(offsets[4]);
-  object.supabaseId = reader.readStringOrNull(offsets[5]);
-  object.tipoPagamento = reader.readString(offsets[6]);
-  object.valorEntrada = reader.readDouble(offsets[7]);
-  object.valorTotal = reader.readDouble(offsets[8]);
+  object.legacyId = reader.readLongOrNull(offsets[5]);
+  object.observacoes = reader.readString(offsets[6]);
+  object.rowVersion = reader.readLong(offsets[7]);
+  object.supabaseId = reader.readStringOrNull(offsets[8]);
+  object.syncOperationId = reader.readStringOrNull(offsets[9]);
+  object.syncPending = reader.readBool(offsets[10]);
+  object.syncRevision = reader.readLong(offsets[11]);
+  object.tipoPagamento = reader.readString(offsets[12]);
+  object.valorEntrada = reader.readDouble(offsets[13]);
+  object.valorTotal = reader.readDouble(offsets[14]);
   return object;
 }
 
@@ -179,22 +259,34 @@ P _vendaLocalDeserializeProp<P>(
 ) {
   switch (propertyId) {
     case 0:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 1:
-      return (reader.readDouble(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 2:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readDateTime(offset)) as P;
     case 3:
-      return (reader.readLongOrNull(offset)) as P;
+      return (reader.readDouble(offset)) as P;
     case 4:
-      return (reader.readString(offset)) as P;
-    case 5:
       return (reader.readStringOrNull(offset)) as P;
+    case 5:
+      return (reader.readLongOrNull(offset)) as P;
     case 6:
       return (reader.readString(offset)) as P;
     case 7:
-      return (reader.readDouble(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 8:
+      return (reader.readStringOrNull(offset)) as P;
+    case 9:
+      return (reader.readStringOrNull(offset)) as P;
+    case 10:
+      return (reader.readBool(offset)) as P;
+    case 11:
+      return (reader.readLong(offset)) as P;
+    case 12:
+      return (reader.readString(offset)) as P;
+    case 13:
+      return (reader.readDouble(offset)) as P;
+    case 14:
       return (reader.readDouble(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -220,6 +312,14 @@ extension VendaLocalQueryWhereSort
   QueryBuilder<VendaLocal, VendaLocal, QAfterWhere> anyId() {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(const IdWhereClause.any());
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterWhere> anyDataVenda() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(
+        const IndexWhereClause.any(indexName: r'dataVenda'),
+      );
     });
   }
 }
@@ -421,10 +521,377 @@ extension VendaLocalQueryWhere
       }
     });
   }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterWhereClause> dataVendaEqualTo(
+      DateTime dataVenda) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'dataVenda',
+        value: [dataVenda],
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterWhereClause> dataVendaNotEqualTo(
+      DateTime dataVenda) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'dataVenda',
+              lower: [],
+              upper: [dataVenda],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'dataVenda',
+              lower: [dataVenda],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'dataVenda',
+              lower: [dataVenda],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'dataVenda',
+              lower: [],
+              upper: [dataVenda],
+              includeUpper: false,
+            ));
+      }
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterWhereClause> dataVendaGreaterThan(
+    DateTime dataVenda, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'dataVenda',
+        lower: [dataVenda],
+        includeLower: include,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterWhereClause> dataVendaLessThan(
+    DateTime dataVenda, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'dataVenda',
+        lower: [],
+        upper: [dataVenda],
+        includeUpper: include,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterWhereClause> dataVendaBetween(
+    DateTime lowerDataVenda,
+    DateTime upperDataVenda, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'dataVenda',
+        lower: [lowerDataVenda],
+        includeLower: includeLower,
+        upper: [upperDataVenda],
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterWhereClause>
+      clienteLocalIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'clienteLocalId',
+        value: [null],
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterWhereClause>
+      clienteLocalIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'clienteLocalId',
+        lower: [null],
+        includeLower: false,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterWhereClause> clienteLocalIdEqualTo(
+      String? clienteLocalId) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'clienteLocalId',
+        value: [clienteLocalId],
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterWhereClause>
+      clienteLocalIdNotEqualTo(String? clienteLocalId) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'clienteLocalId',
+              lower: [],
+              upper: [clienteLocalId],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'clienteLocalId',
+              lower: [clienteLocalId],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'clienteLocalId',
+              lower: [clienteLocalId],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'clienteLocalId',
+              lower: [],
+              upper: [clienteLocalId],
+              includeUpper: false,
+            ));
+      }
+    });
+  }
 }
 
 extension VendaLocalQueryFilter
     on QueryBuilder<VendaLocal, VendaLocal, QFilterCondition> {
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      bootstrapGenerationEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'bootstrapGeneration',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      bootstrapGenerationGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'bootstrapGeneration',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      bootstrapGenerationLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'bootstrapGeneration',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      bootstrapGenerationBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'bootstrapGeneration',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      clienteLocalIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'clienteLocalId',
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      clienteLocalIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'clienteLocalId',
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      clienteLocalIdEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'clienteLocalId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      clienteLocalIdGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'clienteLocalId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      clienteLocalIdLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'clienteLocalId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      clienteLocalIdBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'clienteLocalId',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      clienteLocalIdStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'clienteLocalId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      clienteLocalIdEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'clienteLocalId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      clienteLocalIdContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'clienteLocalId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      clienteLocalIdMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'clienteLocalId',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      clienteLocalIdIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'clienteLocalId',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      clienteLocalIdIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'clienteLocalId',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition> dataVendaEqualTo(
       DateTime value) {
     return QueryBuilder.apply(this, (query) {
@@ -954,6 +1421,61 @@ extension VendaLocalQueryFilter
     });
   }
 
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition> rowVersionEqualTo(
+      int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'rowVersion',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      rowVersionGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'rowVersion',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      rowVersionLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'rowVersion',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition> rowVersionBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'rowVersion',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
   QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
       supabaseIdIsNull() {
     return QueryBuilder.apply(this, (query) {
@@ -1103,6 +1625,226 @@ extension VendaLocalQueryFilter
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'supabaseId',
         value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      syncOperationIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'syncOperationId',
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      syncOperationIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'syncOperationId',
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      syncOperationIdEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'syncOperationId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      syncOperationIdGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'syncOperationId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      syncOperationIdLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'syncOperationId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      syncOperationIdBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'syncOperationId',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      syncOperationIdStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'syncOperationId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      syncOperationIdEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'syncOperationId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      syncOperationIdContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'syncOperationId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      syncOperationIdMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'syncOperationId',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      syncOperationIdIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'syncOperationId',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      syncOperationIdIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'syncOperationId',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      syncPendingEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'syncPending',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      syncRevisionEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'syncRevision',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      syncRevisionGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'syncRevision',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      syncRevisionLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'syncRevision',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterFilterCondition>
+      syncRevisionBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'syncRevision',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
       ));
     });
   }
@@ -1395,6 +2137,33 @@ extension VendaLocalQueryLinks
 
 extension VendaLocalQuerySortBy
     on QueryBuilder<VendaLocal, VendaLocal, QSortBy> {
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy>
+      sortByBootstrapGeneration() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'bootstrapGeneration', Sort.asc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy>
+      sortByBootstrapGenerationDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'bootstrapGeneration', Sort.desc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> sortByClienteLocalId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'clienteLocalId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy>
+      sortByClienteLocalIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'clienteLocalId', Sort.desc);
+    });
+  }
+
   QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> sortByDataVenda() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dataVenda', Sort.asc);
@@ -1455,6 +2224,18 @@ extension VendaLocalQuerySortBy
     });
   }
 
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> sortByRowVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'rowVersion', Sort.asc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> sortByRowVersionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'rowVersion', Sort.desc);
+    });
+  }
+
   QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> sortBySupabaseId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'supabaseId', Sort.asc);
@@ -1464,6 +2245,43 @@ extension VendaLocalQuerySortBy
   QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> sortBySupabaseIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'supabaseId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> sortBySyncOperationId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncOperationId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy>
+      sortBySyncOperationIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncOperationId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> sortBySyncPending() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncPending', Sort.asc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> sortBySyncPendingDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncPending', Sort.desc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> sortBySyncRevision() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncRevision', Sort.asc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> sortBySyncRevisionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncRevision', Sort.desc);
     });
   }
 
@@ -1506,6 +2324,33 @@ extension VendaLocalQuerySortBy
 
 extension VendaLocalQuerySortThenBy
     on QueryBuilder<VendaLocal, VendaLocal, QSortThenBy> {
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy>
+      thenByBootstrapGeneration() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'bootstrapGeneration', Sort.asc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy>
+      thenByBootstrapGenerationDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'bootstrapGeneration', Sort.desc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> thenByClienteLocalId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'clienteLocalId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy>
+      thenByClienteLocalIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'clienteLocalId', Sort.desc);
+    });
+  }
+
   QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> thenByDataVenda() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dataVenda', Sort.asc);
@@ -1578,6 +2423,18 @@ extension VendaLocalQuerySortThenBy
     });
   }
 
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> thenByRowVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'rowVersion', Sort.asc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> thenByRowVersionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'rowVersion', Sort.desc);
+    });
+  }
+
   QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> thenBySupabaseId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'supabaseId', Sort.asc);
@@ -1587,6 +2444,43 @@ extension VendaLocalQuerySortThenBy
   QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> thenBySupabaseIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'supabaseId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> thenBySyncOperationId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncOperationId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy>
+      thenBySyncOperationIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncOperationId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> thenBySyncPending() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncPending', Sort.asc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> thenBySyncPendingDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncPending', Sort.desc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> thenBySyncRevision() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncRevision', Sort.asc);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QAfterSortBy> thenBySyncRevisionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncRevision', Sort.desc);
     });
   }
 
@@ -1629,6 +2523,21 @@ extension VendaLocalQuerySortThenBy
 
 extension VendaLocalQueryWhereDistinct
     on QueryBuilder<VendaLocal, VendaLocal, QDistinct> {
+  QueryBuilder<VendaLocal, VendaLocal, QDistinct>
+      distinctByBootstrapGeneration() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'bootstrapGeneration');
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QDistinct> distinctByClienteLocalId(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'clienteLocalId',
+          caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<VendaLocal, VendaLocal, QDistinct> distinctByDataVenda() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'dataVenda');
@@ -1661,10 +2570,36 @@ extension VendaLocalQueryWhereDistinct
     });
   }
 
+  QueryBuilder<VendaLocal, VendaLocal, QDistinct> distinctByRowVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'rowVersion');
+    });
+  }
+
   QueryBuilder<VendaLocal, VendaLocal, QDistinct> distinctBySupabaseId(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'supabaseId', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QDistinct> distinctBySyncOperationId(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'syncOperationId',
+          caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QDistinct> distinctBySyncPending() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'syncPending');
+    });
+  }
+
+  QueryBuilder<VendaLocal, VendaLocal, QDistinct> distinctBySyncRevision() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'syncRevision');
     });
   }
 
@@ -1694,6 +2629,19 @@ extension VendaLocalQueryProperty
   QueryBuilder<VendaLocal, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
+    });
+  }
+
+  QueryBuilder<VendaLocal, int, QQueryOperations>
+      bootstrapGenerationProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'bootstrapGeneration');
+    });
+  }
+
+  QueryBuilder<VendaLocal, String?, QQueryOperations> clienteLocalIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'clienteLocalId');
     });
   }
 
@@ -1727,9 +2675,34 @@ extension VendaLocalQueryProperty
     });
   }
 
+  QueryBuilder<VendaLocal, int, QQueryOperations> rowVersionProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'rowVersion');
+    });
+  }
+
   QueryBuilder<VendaLocal, String?, QQueryOperations> supabaseIdProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'supabaseId');
+    });
+  }
+
+  QueryBuilder<VendaLocal, String?, QQueryOperations>
+      syncOperationIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'syncOperationId');
+    });
+  }
+
+  QueryBuilder<VendaLocal, bool, QQueryOperations> syncPendingProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'syncPending');
+    });
+  }
+
+  QueryBuilder<VendaLocal, int, QQueryOperations> syncRevisionProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'syncRevision');
     });
   }
 

@@ -84,6 +84,28 @@ Não use `user_metadata` para autorizar o tenant, pois esse conteúdo pode ser
 alterado pelo próprio usuário. A chave anônima no aplicativo também não
 substitui políticas RLS adequadas.
 
+## Migração de dados legados
+
+O importador em `tool/migrate_legacy.dart` serve apenas para trazer o export
+legado ao ambiente de desenvolvimento. Ele usa uma chave `service_role` fora do
+aplicativo, valida os dados antes de escrever e pode ser retomado após falhas.
+
+1. Copie `.env.migration.example` para `.env.migration` e preencha as
+   credenciais do projeto de desenvolvimento. Nunca use a chave de produção.
+2. Execute a validação, sem escrita:
+
+```sh
+dart run tool/migrate_legacy.dart \
+  --empresa-id 00000000-0000-4000-8000-000000000000 \
+  --dry-run
+```
+
+3. Revise `build/legacy_migration_report.json`. Somente então execute o mesmo
+   comando com `--apply` no lugar de `--dry-run`.
+
+O arquivo de dados e a chave de migração são ignorados pelo Git. Não execute a
+migração enquanto o aplicativo estiver sincronizando o mesmo tenant.
+
 ## Variáveis de ambiente
 
 Crie um arquivo `.env` na raiz do projeto:

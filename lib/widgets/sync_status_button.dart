@@ -113,6 +113,8 @@ class _SyncDetailsSheet extends StatelessWidget {
                   Text('Salvos: ${report.saved}'),
                   Text('Adiados: ${report.deferred}'),
                   Text('Falhas: ${report.failed}'),
+                  Text('Pendentes: ${report.pendingAfter}'),
+                  Text('Conflitos: ${report.conflicts}'),
                 ],
               ),
               if (report.issues.isNotEmpty) ...[

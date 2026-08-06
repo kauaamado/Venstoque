@@ -12,6 +12,11 @@ class ProdutoLocal {
   @Index()
   String? empresaId;
 
+  @Index()
+  int rowVersion = 0;
+
+  int bootstrapGeneration = 0;
+
   String nome = '';
   String categoria = '';
   String fornecedor = '';

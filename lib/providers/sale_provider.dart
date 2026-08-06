@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:isar_community/isar.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/cliente_model.dart';
 import '../models/item_venda_model.dart';
@@ -13,6 +15,7 @@ import '../models/local/venda_model.dart';
 import '../models/parcela_model.dart';
 import '../models/produto_model.dart';
 import '../models/venda_model.dart';
+import '../models/local/sync_state_model.dart';
 
 class SaleProvider with ChangeNotifier {
   SaleProvider(this._isar, {required String empresaId})
@@ -59,6 +62,8 @@ class SaleProvider with ChangeNotifier {
   bool _isLoading = false;
   bool _isLoadingHistory = false;
   bool _isDisposed = false;
+  bool _refreshInProgress = false;
+  bool _refreshRequested = false;
   String? _errorMessage;
   List<_SaleSnapshot> _snapshots = [];
   List<VendaModel> _sales = [];
@@ -176,6 +181,9 @@ class SaleProvider with ChangeNotifier {
         final sale = VendaLocal()
           ..supabaseId = null
           ..empresaId = _empresaId
+          ..clienteLocalId = localCustomer.id.toString()
+          ..syncOperationId = const Uuid().v4()
+          ..syncPending = true
           ..dataVenda = saleDate
           ..valorTotal = saleTotal
           ..valorEntrada = paymentType == 'a_vista' ? saleTotal : 0
@@ -185,6 +193,15 @@ class SaleProvider with ChangeNotifier {
         sale.cliente.value = localCustomer;
         await _isar.vendaLocals.put(sale);
         await sale.cliente.save();
+        await _isar.syncMutationLocals.put(
+          SyncMutationLocal()
+            ..tenantId = _empresaId
+            ..operationId = sale.syncOperationId!
+            ..entity = 'venda_graph'
+            ..operation = 'create_graph'
+            ..localId = sale.id
+            ..payloadJson = '{}',
+        );
 
         for (final cartItem in items) {
           final productId = _requiredLocalId(
@@ -204,11 +221,14 @@ class SaleProvider with ChangeNotifier {
           product
             ..quantidadeEstoque -= cartItem.quantidade
             ..syncRevision = product.syncRevision + 1
-            ..syncPending = product.supabaseId != null;
+            ..syncPending = product.supabaseId == null;
           await _isar.produtoLocals.put(product);
 
           final item = ItemVendaLocal()
             ..supabaseId = null
+            ..empresaId = _empresaId
+            ..vendaLocalId = sale.id
+            ..produtoLocalId = product.id
             ..quantidade = cartItem.quantidade
             ..precoUnitario = cartItem.precoUnitario
             ..custoUnitario = cartItem.custoUnitario;
@@ -224,6 +244,7 @@ class SaleProvider with ChangeNotifier {
           final localInstallment = ParcelaLocal()
             ..supabaseId = null
             ..empresaId = _empresaId
+            ..vendaLocalId = sale.id
             ..numeroParcela = installment.numeroParcela
             ..valor = installment.valor
             ..dataVencimento = installment.dataVencimento
@@ -306,6 +327,7 @@ class SaleProvider with ChangeNotifier {
         ..syncRevision = installment.syncRevision + 1
         ..syncPending = installment.supabaseId != null;
       await _isar.parcelaLocals.put(installment);
+      await _queueInstallmentMutation(installment);
     });
     await _refreshSales();
   }
@@ -326,6 +348,7 @@ class SaleProvider with ChangeNotifier {
           ..syncRevision = installment.syncRevision + 1
           ..syncPending = installment.supabaseId != null;
         await _isar.parcelaLocals.put(installment);
+        await _queueInstallmentMutation(installment);
       }
     });
     await _refreshSales();
@@ -347,18 +370,57 @@ class SaleProvider with ChangeNotifier {
         ..syncRevision = installment.syncRevision + 1
         ..syncPending = installment.supabaseId != null;
       await _isar.parcelaLocals.put(installment);
+      await _queueInstallmentMutation(installment);
     });
     await _refreshSales();
   }
 
+  Future<void> _queueInstallmentMutation(ParcelaLocal installment) async {
+    if (installment.supabaseId == null) return;
+    final existing = await _isar.syncMutationLocals
+        .filter()
+        .tenantIdEqualTo(_empresaId)
+        .entityEqualTo('parcelas')
+        .localIdEqualTo(installment.id)
+        .stateEqualTo('queued')
+        .findFirst();
+    final mutation = existing ?? SyncMutationLocal()
+      ..tenantId = _empresaId
+      ..operationId = const Uuid().v4()
+      ..entity = 'parcelas'
+      ..operation = 'update'
+      ..localId = installment.id
+      ..remoteId = installment.supabaseId;
+    mutation
+      ..baseRowVersion =
+          installment.rowVersion == 0 ? null : installment.rowVersion
+      ..payloadJson = jsonEncode(<String, dynamic>{
+        'valor': installment.valor,
+        'data_vencimento': installment.dataVencimento.toIso8601String(),
+        'data_pagamento': installment.dataPagamento?.toIso8601String(),
+        'status': installment.status,
+      });
+    await _isar.syncMutationLocals.put(mutation);
+  }
+
   Future<void> _refreshFromWatcher() async {
+    if (_refreshInProgress) {
+      _refreshRequested = true;
+      return;
+    }
+    _refreshInProgress = true;
     try {
-      await _refreshSales();
-      _errorMessage = null;
-      _notifyListeners();
+      do {
+        _refreshRequested = false;
+        await _refreshSales();
+        _errorMessage = null;
+        _notifyListeners();
+      } while (_refreshRequested && !_isDisposed);
     } catch (error, stackTrace) {
       _recordError('Erro ao observar vendas locais', error, stackTrace);
       _notifyListeners();
+    } finally {
+      _refreshInProgress = false;
     }
   }
 
@@ -368,28 +430,76 @@ class SaleProvider with ChangeNotifier {
         .empresaIdEqualTo(_empresaId)
         .sortByDataVendaDesc()
         .findAll();
+    final customers = await _isar.clienteLocals
+        .filter()
+        .empresaIdEqualTo(_empresaId)
+        .findAll();
+    final products = await _isar.produtoLocals
+        .filter()
+        .empresaIdEqualTo(_empresaId)
+        .findAll();
+    final allItems = await _isar.itemVendaLocals
+        .filter()
+        .empresaIdEqualTo(_empresaId)
+        .findAll();
+    final allInstallments = await _isar.parcelaLocals
+        .filter()
+        .empresaIdEqualTo(_empresaId)
+        .sortByNumeroParcela()
+        .findAll();
+    final customersById = {for (final item in customers) item.id: item};
+    final productsById = {for (final item in products) item.id: item};
+    final itemsBySale = <int, List<ItemVendaLocal>>{};
+    for (final item in allItems) {
+      final saleId = item.vendaLocalId;
+      if (saleId != null) {
+        itemsBySale.putIfAbsent(saleId, () => []).add(item);
+      }
+    }
+    final installmentsBySale = <int, List<ParcelaLocal>>{};
+    for (final installment in allInstallments) {
+      final saleId = installment.vendaLocalId;
+      if (saleId != null) {
+        installmentsBySale.putIfAbsent(saleId, () => []).add(installment);
+      }
+    }
     final snapshots = <_SaleSnapshot>[];
 
     for (final sale in localSales) {
-      await sale.cliente.load();
-      final items = await _isar.itemVendaLocals
-          .filter()
-          .venda((query) => query.idEqualTo(sale.id))
-          .findAll();
+      ClienteLocal? customer = sale.clienteLocalId == null
+          ? null
+          : customersById[int.tryParse(sale.clienteLocalId!)];
+      customer ??= await _loadCustomerFallback(sale);
+      var items = itemsBySale[sale.id] ?? const <ItemVendaLocal>[];
+      if (items.isEmpty) {
+        items = await _isar.itemVendaLocals
+            .filter()
+            .venda((query) => query.idEqualTo(sale.id))
+            .findAll();
+      }
       final itemSnapshots = <_ItemSnapshot>[];
       for (final item in items) {
-        await item.produto.load();
-        itemSnapshots.add(_ItemSnapshot(item, item.produto.value));
+        ProdutoLocal? product = item.produtoLocalId == null
+            ? null
+            : productsById[item.produtoLocalId];
+        if (product == null) {
+          await item.produto.load();
+          product = item.produto.value;
+        }
+        itemSnapshots.add(_ItemSnapshot(item, product));
       }
-      final installments = await _isar.parcelaLocals
-          .filter()
-          .venda((query) => query.idEqualTo(sale.id))
-          .sortByNumeroParcela()
-          .findAll();
+      var installments = installmentsBySale[sale.id] ?? const <ParcelaLocal>[];
+      if (installments.isEmpty) {
+        installments = await _isar.parcelaLocals
+            .filter()
+            .venda((query) => query.idEqualTo(sale.id))
+            .sortByNumeroParcela()
+            .findAll();
+      }
       snapshots.add(
         _SaleSnapshot(
           sale,
-          sale.cliente.value,
+          customer,
           itemSnapshots,
           installments,
         ),
@@ -399,12 +509,22 @@ class SaleProvider with ChangeNotifier {
     if (_isDisposed) return;
     _snapshots = snapshots;
     _sales = snapshots.map(_saleModel).toList();
-    _salesHistory = snapshots.map(_saleHistoryMap).toList();
+    final now = DateTime.now();
+    final offlineCutoff = DateTime(now.year - 1, now.month, now.day);
+    _salesHistory = snapshots
+        .where((snapshot) => !snapshot.sale.dataVenda.isBefore(offlineCutoff))
+        .map(_saleHistoryMap)
+        .toList();
     _receivables = snapshots
         .expand(_receivableMaps)
         .where((installment) => installment['status'] != 'pago')
         .toList();
     _customerInsightsCache = _buildCustomerInsights(snapshots);
+  }
+
+  Future<ClienteLocal?> _loadCustomerFallback(VendaLocal sale) async {
+    await sale.cliente.load();
+    return sale.cliente.value;
   }
 
   VendaModel _saleModel(_SaleSnapshot snapshot) {

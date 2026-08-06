@@ -22,53 +22,63 @@ const ClienteLocalSchema = CollectionSchema(
       name: r'ativo',
       type: IsarType.bool,
     ),
-    r'celular': PropertySchema(
+    r'bootstrapGeneration': PropertySchema(
       id: 1,
+      name: r'bootstrapGeneration',
+      type: IsarType.long,
+    ),
+    r'celular': PropertySchema(
+      id: 2,
       name: r'celular',
       type: IsarType.string,
     ),
     r'empresaId': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'empresaId',
       type: IsarType.string,
     ),
     r'legacyId': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'legacyId',
       type: IsarType.long,
     ),
     r'nome': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'nome',
       type: IsarType.string,
     ),
     r'observacoes': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'observacoes',
       type: IsarType.string,
     ),
     r'pendingDelete': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'pendingDelete',
       type: IsarType.bool,
     ),
     r'referencia': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'referencia',
       type: IsarType.string,
     ),
+    r'rowVersion': PropertySchema(
+      id: 9,
+      name: r'rowVersion',
+      type: IsarType.long,
+    ),
     r'supabaseId': PropertySchema(
-      id: 8,
+      id: 10,
       name: r'supabaseId',
       type: IsarType.string,
     ),
     r'syncPending': PropertySchema(
-      id: 9,
+      id: 11,
       name: r'syncPending',
       type: IsarType.bool,
     ),
     r'syncRevision': PropertySchema(
-      id: 10,
+      id: 12,
       name: r'syncRevision',
       type: IsarType.long,
     )
@@ -102,6 +112,19 @@ const ClienteLocalSchema = CollectionSchema(
           name: r'empresaId',
           type: IndexType.hash,
           caseSensitive: true,
+        )
+      ],
+    ),
+    r'rowVersion': IndexSchema(
+      id: 2605361139837295030,
+      name: r'rowVersion',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'rowVersion',
+          type: IndexType.value,
+          caseSensitive: false,
         )
       ],
     )
@@ -146,16 +169,18 @@ void _clienteLocalSerialize(
   Map<Type, List<int>> allOffsets,
 ) {
   writer.writeBool(offsets[0], object.ativo);
-  writer.writeString(offsets[1], object.celular);
-  writer.writeString(offsets[2], object.empresaId);
-  writer.writeLong(offsets[3], object.legacyId);
-  writer.writeString(offsets[4], object.nome);
-  writer.writeString(offsets[5], object.observacoes);
-  writer.writeBool(offsets[6], object.pendingDelete);
-  writer.writeString(offsets[7], object.referencia);
-  writer.writeString(offsets[8], object.supabaseId);
-  writer.writeBool(offsets[9], object.syncPending);
-  writer.writeLong(offsets[10], object.syncRevision);
+  writer.writeLong(offsets[1], object.bootstrapGeneration);
+  writer.writeString(offsets[2], object.celular);
+  writer.writeString(offsets[3], object.empresaId);
+  writer.writeLong(offsets[4], object.legacyId);
+  writer.writeString(offsets[5], object.nome);
+  writer.writeString(offsets[6], object.observacoes);
+  writer.writeBool(offsets[7], object.pendingDelete);
+  writer.writeString(offsets[8], object.referencia);
+  writer.writeLong(offsets[9], object.rowVersion);
+  writer.writeString(offsets[10], object.supabaseId);
+  writer.writeBool(offsets[11], object.syncPending);
+  writer.writeLong(offsets[12], object.syncRevision);
 }
 
 ClienteLocal _clienteLocalDeserialize(
@@ -166,17 +191,19 @@ ClienteLocal _clienteLocalDeserialize(
 ) {
   final object = ClienteLocal();
   object.ativo = reader.readBool(offsets[0]);
-  object.celular = reader.readString(offsets[1]);
-  object.empresaId = reader.readStringOrNull(offsets[2]);
+  object.bootstrapGeneration = reader.readLong(offsets[1]);
+  object.celular = reader.readString(offsets[2]);
+  object.empresaId = reader.readStringOrNull(offsets[3]);
   object.id = id;
-  object.legacyId = reader.readLongOrNull(offsets[3]);
-  object.nome = reader.readString(offsets[4]);
-  object.observacoes = reader.readString(offsets[5]);
-  object.pendingDelete = reader.readBool(offsets[6]);
-  object.referencia = reader.readString(offsets[7]);
-  object.supabaseId = reader.readStringOrNull(offsets[8]);
-  object.syncPending = reader.readBool(offsets[9]);
-  object.syncRevision = reader.readLong(offsets[10]);
+  object.legacyId = reader.readLongOrNull(offsets[4]);
+  object.nome = reader.readString(offsets[5]);
+  object.observacoes = reader.readString(offsets[6]);
+  object.pendingDelete = reader.readBool(offsets[7]);
+  object.referencia = reader.readString(offsets[8]);
+  object.rowVersion = reader.readLong(offsets[9]);
+  object.supabaseId = reader.readStringOrNull(offsets[10]);
+  object.syncPending = reader.readBool(offsets[11]);
+  object.syncRevision = reader.readLong(offsets[12]);
   return object;
 }
 
@@ -190,24 +217,28 @@ P _clienteLocalDeserializeProp<P>(
     case 0:
       return (reader.readBool(offset)) as P;
     case 1:
-      return (reader.readString(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 2:
-      return (reader.readStringOrNull(offset)) as P;
-    case 3:
-      return (reader.readLongOrNull(offset)) as P;
-    case 4:
       return (reader.readString(offset)) as P;
+    case 3:
+      return (reader.readStringOrNull(offset)) as P;
+    case 4:
+      return (reader.readLongOrNull(offset)) as P;
     case 5:
       return (reader.readString(offset)) as P;
     case 6:
-      return (reader.readBool(offset)) as P;
-    case 7:
       return (reader.readString(offset)) as P;
-    case 8:
-      return (reader.readStringOrNull(offset)) as P;
-    case 9:
+    case 7:
       return (reader.readBool(offset)) as P;
+    case 8:
+      return (reader.readString(offset)) as P;
+    case 9:
+      return (reader.readLong(offset)) as P;
     case 10:
+      return (reader.readStringOrNull(offset)) as P;
+    case 11:
+      return (reader.readBool(offset)) as P;
+    case 12:
       return (reader.readLong(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -232,6 +263,14 @@ extension ClienteLocalQueryWhereSort
   QueryBuilder<ClienteLocal, ClienteLocal, QAfterWhere> anyId() {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(const IdWhereClause.any());
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterWhere> anyRowVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(
+        const IndexWhereClause.any(indexName: r'rowVersion'),
+      );
     });
   }
 }
@@ -438,6 +477,98 @@ extension ClienteLocalQueryWhere
       }
     });
   }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterWhereClause> rowVersionEqualTo(
+      int rowVersion) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'rowVersion',
+        value: [rowVersion],
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterWhereClause>
+      rowVersionNotEqualTo(int rowVersion) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'rowVersion',
+              lower: [],
+              upper: [rowVersion],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'rowVersion',
+              lower: [rowVersion],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'rowVersion',
+              lower: [rowVersion],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'rowVersion',
+              lower: [],
+              upper: [rowVersion],
+              includeUpper: false,
+            ));
+      }
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterWhereClause>
+      rowVersionGreaterThan(
+    int rowVersion, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'rowVersion',
+        lower: [rowVersion],
+        includeLower: include,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterWhereClause>
+      rowVersionLessThan(
+    int rowVersion, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'rowVersion',
+        lower: [],
+        upper: [rowVersion],
+        includeUpper: include,
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterWhereClause> rowVersionBetween(
+    int lowerRowVersion,
+    int upperRowVersion, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'rowVersion',
+        lower: [lowerRowVersion],
+        includeLower: includeLower,
+        upper: [upperRowVersion],
+        includeUpper: includeUpper,
+      ));
+    });
+  }
 }
 
 extension ClienteLocalQueryFilter
@@ -448,6 +579,62 @@ extension ClienteLocalQueryFilter
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'ativo',
         value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterFilterCondition>
+      bootstrapGenerationEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'bootstrapGeneration',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterFilterCondition>
+      bootstrapGenerationGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'bootstrapGeneration',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterFilterCondition>
+      bootstrapGenerationLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'bootstrapGeneration',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterFilterCondition>
+      bootstrapGenerationBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'bootstrapGeneration',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
       ));
     });
   }
@@ -1286,6 +1473,62 @@ extension ClienteLocalQueryFilter
   }
 
   QueryBuilder<ClienteLocal, ClienteLocal, QAfterFilterCondition>
+      rowVersionEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'rowVersion',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterFilterCondition>
+      rowVersionGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'rowVersion',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterFilterCondition>
+      rowVersionLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'rowVersion',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterFilterCondition>
+      rowVersionBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'rowVersion',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterFilterCondition>
       supabaseIdIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
@@ -1526,6 +1769,20 @@ extension ClienteLocalQuerySortBy
     });
   }
 
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy>
+      sortByBootstrapGeneration() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'bootstrapGeneration', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy>
+      sortByBootstrapGenerationDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'bootstrapGeneration', Sort.desc);
+    });
+  }
+
   QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy> sortByCelular() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'celular', Sort.asc);
@@ -1613,6 +1870,19 @@ extension ClienteLocalQuerySortBy
     });
   }
 
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy> sortByRowVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'rowVersion', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy>
+      sortByRowVersionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'rowVersion', Sort.desc);
+    });
+  }
+
   QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy> sortBySupabaseId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'supabaseId', Sort.asc);
@@ -1664,6 +1934,20 @@ extension ClienteLocalQuerySortThenBy
   QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy> thenByAtivoDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'ativo', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy>
+      thenByBootstrapGeneration() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'bootstrapGeneration', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy>
+      thenByBootstrapGenerationDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'bootstrapGeneration', Sort.desc);
     });
   }
 
@@ -1766,6 +2050,19 @@ extension ClienteLocalQuerySortThenBy
     });
   }
 
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy> thenByRowVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'rowVersion', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy>
+      thenByRowVersionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'rowVersion', Sort.desc);
+    });
+  }
+
   QueryBuilder<ClienteLocal, ClienteLocal, QAfterSortBy> thenBySupabaseId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'supabaseId', Sort.asc);
@@ -1811,6 +2108,13 @@ extension ClienteLocalQueryWhereDistinct
   QueryBuilder<ClienteLocal, ClienteLocal, QDistinct> distinctByAtivo() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'ativo');
+    });
+  }
+
+  QueryBuilder<ClienteLocal, ClienteLocal, QDistinct>
+      distinctByBootstrapGeneration() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'bootstrapGeneration');
     });
   }
 
@@ -1862,6 +2166,12 @@ extension ClienteLocalQueryWhereDistinct
     });
   }
 
+  QueryBuilder<ClienteLocal, ClienteLocal, QDistinct> distinctByRowVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'rowVersion');
+    });
+  }
+
   QueryBuilder<ClienteLocal, ClienteLocal, QDistinct> distinctBySupabaseId(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -1893,6 +2203,13 @@ extension ClienteLocalQueryProperty
   QueryBuilder<ClienteLocal, bool, QQueryOperations> ativoProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'ativo');
+    });
+  }
+
+  QueryBuilder<ClienteLocal, int, QQueryOperations>
+      bootstrapGenerationProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'bootstrapGeneration');
     });
   }
 
@@ -1935,6 +2252,12 @@ extension ClienteLocalQueryProperty
   QueryBuilder<ClienteLocal, String, QQueryOperations> referenciaProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'referencia');
+    });
+  }
+
+  QueryBuilder<ClienteLocal, int, QQueryOperations> rowVersionProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'rowVersion');
     });
   }
 

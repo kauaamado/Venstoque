@@ -22,58 +22,68 @@ const ProdutoLocalSchema = CollectionSchema(
       name: r'ativo',
       type: IsarType.bool,
     ),
-    r'categoria': PropertySchema(
+    r'bootstrapGeneration': PropertySchema(
       id: 1,
+      name: r'bootstrapGeneration',
+      type: IsarType.long,
+    ),
+    r'categoria': PropertySchema(
+      id: 2,
       name: r'categoria',
       type: IsarType.string,
     ),
     r'empresaId': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'empresaId',
       type: IsarType.string,
     ),
     r'fornecedor': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'fornecedor',
       type: IsarType.string,
     ),
     r'nome': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'nome',
       type: IsarType.string,
     ),
     r'pendingDelete': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'pendingDelete',
       type: IsarType.bool,
     ),
     r'precoCusto': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'precoCusto',
       type: IsarType.double,
     ),
     r'quantidadeEstoque': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'quantidadeEstoque',
       type: IsarType.long,
     ),
+    r'rowVersion': PropertySchema(
+      id: 9,
+      name: r'rowVersion',
+      type: IsarType.long,
+    ),
     r'supabaseId': PropertySchema(
-      id: 8,
+      id: 10,
       name: r'supabaseId',
       type: IsarType.string,
     ),
     r'syncPending': PropertySchema(
-      id: 9,
+      id: 11,
       name: r'syncPending',
       type: IsarType.bool,
     ),
     r'syncRevision': PropertySchema(
-      id: 10,
+      id: 12,
       name: r'syncRevision',
       type: IsarType.long,
     ),
     r'valorVenda': PropertySchema(
-      id: 11,
+      id: 13,
       name: r'valorVenda',
       type: IsarType.double,
     )
@@ -107,6 +117,19 @@ const ProdutoLocalSchema = CollectionSchema(
           name: r'empresaId',
           type: IndexType.hash,
           caseSensitive: true,
+        )
+      ],
+    ),
+    r'rowVersion': IndexSchema(
+      id: 2605361139837295030,
+      name: r'rowVersion',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'rowVersion',
+          type: IndexType.value,
+          caseSensitive: false,
         )
       ],
     )
@@ -150,17 +173,19 @@ void _produtoLocalSerialize(
   Map<Type, List<int>> allOffsets,
 ) {
   writer.writeBool(offsets[0], object.ativo);
-  writer.writeString(offsets[1], object.categoria);
-  writer.writeString(offsets[2], object.empresaId);
-  writer.writeString(offsets[3], object.fornecedor);
-  writer.writeString(offsets[4], object.nome);
-  writer.writeBool(offsets[5], object.pendingDelete);
-  writer.writeDouble(offsets[6], object.precoCusto);
-  writer.writeLong(offsets[7], object.quantidadeEstoque);
-  writer.writeString(offsets[8], object.supabaseId);
-  writer.writeBool(offsets[9], object.syncPending);
-  writer.writeLong(offsets[10], object.syncRevision);
-  writer.writeDouble(offsets[11], object.valorVenda);
+  writer.writeLong(offsets[1], object.bootstrapGeneration);
+  writer.writeString(offsets[2], object.categoria);
+  writer.writeString(offsets[3], object.empresaId);
+  writer.writeString(offsets[4], object.fornecedor);
+  writer.writeString(offsets[5], object.nome);
+  writer.writeBool(offsets[6], object.pendingDelete);
+  writer.writeDouble(offsets[7], object.precoCusto);
+  writer.writeLong(offsets[8], object.quantidadeEstoque);
+  writer.writeLong(offsets[9], object.rowVersion);
+  writer.writeString(offsets[10], object.supabaseId);
+  writer.writeBool(offsets[11], object.syncPending);
+  writer.writeLong(offsets[12], object.syncRevision);
+  writer.writeDouble(offsets[13], object.valorVenda);
 }
 
 ProdutoLocal _produtoLocalDeserialize(
@@ -171,18 +196,20 @@ ProdutoLocal _produtoLocalDeserialize(
 ) {
   final object = ProdutoLocal();
   object.ativo = reader.readBool(offsets[0]);
-  object.categoria = reader.readString(offsets[1]);
-  object.empresaId = reader.readStringOrNull(offsets[2]);
-  object.fornecedor = reader.readString(offsets[3]);
+  object.bootstrapGeneration = reader.readLong(offsets[1]);
+  object.categoria = reader.readString(offsets[2]);
+  object.empresaId = reader.readStringOrNull(offsets[3]);
+  object.fornecedor = reader.readString(offsets[4]);
   object.id = id;
-  object.nome = reader.readString(offsets[4]);
-  object.pendingDelete = reader.readBool(offsets[5]);
-  object.precoCusto = reader.readDouble(offsets[6]);
-  object.quantidadeEstoque = reader.readLong(offsets[7]);
-  object.supabaseId = reader.readStringOrNull(offsets[8]);
-  object.syncPending = reader.readBool(offsets[9]);
-  object.syncRevision = reader.readLong(offsets[10]);
-  object.valorVenda = reader.readDouble(offsets[11]);
+  object.nome = reader.readString(offsets[5]);
+  object.pendingDelete = reader.readBool(offsets[6]);
+  object.precoCusto = reader.readDouble(offsets[7]);
+  object.quantidadeEstoque = reader.readLong(offsets[8]);
+  object.rowVersion = reader.readLong(offsets[9]);
+  object.supabaseId = reader.readStringOrNull(offsets[10]);
+  object.syncPending = reader.readBool(offsets[11]);
+  object.syncRevision = reader.readLong(offsets[12]);
+  object.valorVenda = reader.readDouble(offsets[13]);
   return object;
 }
 
@@ -196,26 +223,30 @@ P _produtoLocalDeserializeProp<P>(
     case 0:
       return (reader.readBool(offset)) as P;
     case 1:
-      return (reader.readString(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 2:
-      return (reader.readStringOrNull(offset)) as P;
-    case 3:
       return (reader.readString(offset)) as P;
+    case 3:
+      return (reader.readStringOrNull(offset)) as P;
     case 4:
       return (reader.readString(offset)) as P;
     case 5:
-      return (reader.readBool(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 6:
-      return (reader.readDouble(offset)) as P;
-    case 7:
-      return (reader.readLong(offset)) as P;
-    case 8:
-      return (reader.readStringOrNull(offset)) as P;
-    case 9:
       return (reader.readBool(offset)) as P;
-    case 10:
+    case 7:
+      return (reader.readDouble(offset)) as P;
+    case 8:
       return (reader.readLong(offset)) as P;
+    case 9:
+      return (reader.readLong(offset)) as P;
+    case 10:
+      return (reader.readStringOrNull(offset)) as P;
     case 11:
+      return (reader.readBool(offset)) as P;
+    case 12:
+      return (reader.readLong(offset)) as P;
+    case 13:
       return (reader.readDouble(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -240,6 +271,14 @@ extension ProdutoLocalQueryWhereSort
   QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterWhere> anyId() {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(const IdWhereClause.any());
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterWhere> anyRowVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(
+        const IndexWhereClause.any(indexName: r'rowVersion'),
+      );
     });
   }
 }
@@ -446,6 +485,98 @@ extension ProdutoLocalQueryWhere
       }
     });
   }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterWhereClause> rowVersionEqualTo(
+      int rowVersion) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'rowVersion',
+        value: [rowVersion],
+      ));
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterWhereClause>
+      rowVersionNotEqualTo(int rowVersion) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'rowVersion',
+              lower: [],
+              upper: [rowVersion],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'rowVersion',
+              lower: [rowVersion],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'rowVersion',
+              lower: [rowVersion],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'rowVersion',
+              lower: [],
+              upper: [rowVersion],
+              includeUpper: false,
+            ));
+      }
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterWhereClause>
+      rowVersionGreaterThan(
+    int rowVersion, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'rowVersion',
+        lower: [rowVersion],
+        includeLower: include,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterWhereClause>
+      rowVersionLessThan(
+    int rowVersion, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'rowVersion',
+        lower: [],
+        upper: [rowVersion],
+        includeUpper: include,
+      ));
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterWhereClause> rowVersionBetween(
+    int lowerRowVersion,
+    int upperRowVersion, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'rowVersion',
+        lower: [lowerRowVersion],
+        includeLower: includeLower,
+        upper: [upperRowVersion],
+        includeUpper: includeUpper,
+      ));
+    });
+  }
 }
 
 extension ProdutoLocalQueryFilter
@@ -456,6 +587,62 @@ extension ProdutoLocalQueryFilter
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'ativo',
         value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterFilterCondition>
+      bootstrapGenerationEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'bootstrapGeneration',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterFilterCondition>
+      bootstrapGenerationGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'bootstrapGeneration',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterFilterCondition>
+      bootstrapGenerationLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'bootstrapGeneration',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterFilterCondition>
+      bootstrapGenerationBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'bootstrapGeneration',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
       ));
     });
   }
@@ -1206,6 +1393,62 @@ extension ProdutoLocalQueryFilter
   }
 
   QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterFilterCondition>
+      rowVersionEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'rowVersion',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterFilterCondition>
+      rowVersionGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'rowVersion',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterFilterCondition>
+      rowVersionLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'rowVersion',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterFilterCondition>
+      rowVersionBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'rowVersion',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterFilterCondition>
       supabaseIdIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
@@ -1512,6 +1755,20 @@ extension ProdutoLocalQuerySortBy
     });
   }
 
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy>
+      sortByBootstrapGeneration() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'bootstrapGeneration', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy>
+      sortByBootstrapGenerationDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'bootstrapGeneration', Sort.desc);
+    });
+  }
+
   QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy> sortByCategoria() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'categoria', Sort.asc);
@@ -1601,6 +1858,19 @@ extension ProdutoLocalQuerySortBy
     });
   }
 
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy> sortByRowVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'rowVersion', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy>
+      sortByRowVersionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'rowVersion', Sort.desc);
+    });
+  }
+
   QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy> sortBySupabaseId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'supabaseId', Sort.asc);
@@ -1665,6 +1935,20 @@ extension ProdutoLocalQuerySortThenBy
   QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy> thenByAtivoDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'ativo', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy>
+      thenByBootstrapGeneration() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'bootstrapGeneration', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy>
+      thenByBootstrapGenerationDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'bootstrapGeneration', Sort.desc);
     });
   }
 
@@ -1769,6 +2053,19 @@ extension ProdutoLocalQuerySortThenBy
     });
   }
 
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy> thenByRowVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'rowVersion', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy>
+      thenByRowVersionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'rowVersion', Sort.desc);
+    });
+  }
+
   QueryBuilder<ProdutoLocal, ProdutoLocal, QAfterSortBy> thenBySupabaseId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'supabaseId', Sort.asc);
@@ -1830,6 +2127,13 @@ extension ProdutoLocalQueryWhereDistinct
     });
   }
 
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QDistinct>
+      distinctByBootstrapGeneration() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'bootstrapGeneration');
+    });
+  }
+
   QueryBuilder<ProdutoLocal, ProdutoLocal, QDistinct> distinctByCategoria(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -1878,6 +2182,12 @@ extension ProdutoLocalQueryWhereDistinct
     });
   }
 
+  QueryBuilder<ProdutoLocal, ProdutoLocal, QDistinct> distinctByRowVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'rowVersion');
+    });
+  }
+
   QueryBuilder<ProdutoLocal, ProdutoLocal, QDistinct> distinctBySupabaseId(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -1915,6 +2225,13 @@ extension ProdutoLocalQueryProperty
   QueryBuilder<ProdutoLocal, bool, QQueryOperations> ativoProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'ativo');
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, int, QQueryOperations>
+      bootstrapGenerationProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'bootstrapGeneration');
     });
   }
 
@@ -1958,6 +2275,12 @@ extension ProdutoLocalQueryProperty
       quantidadeEstoqueProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'quantidadeEstoque');
+    });
+  }
+
+  QueryBuilder<ProdutoLocal, int, QQueryOperations> rowVersionProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'rowVersion');
     });
   }
 

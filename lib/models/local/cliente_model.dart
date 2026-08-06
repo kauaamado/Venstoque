@@ -12,6 +12,11 @@ class ClienteLocal {
   @Index()
   String? empresaId;
 
+  @Index()
+  int rowVersion = 0;
+
+  int bootstrapGeneration = 0;
+
   String nome = '';
   String celular = '';
   String referencia = '';

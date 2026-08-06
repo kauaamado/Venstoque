@@ -12,6 +12,7 @@ import '../../widgets/account_menu_button.dart';
 import '../../widgets/summary_card.dart';
 import '../../widgets/sync_status_button.dart';
 import '../sales/sale_history_screen.dart';
+import '../sales/remote_history_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -52,13 +53,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final sales = context.watch<SaleProvider>();
     final stock = context.watch<StockProvider>();
     final now = DateTime.now();
-    final startOfMonth = DateTime(now.year, now.month);
-    final startOfNextMonth = DateTime(now.year, now.month + 1);
+    final twelveMonthsAgo = DateTime(now.year - 1, now.month, now.day);
     final monthlySales = sales.sales
         .where(
           (sale) =>
-              !sale.dataVenda.isBefore(startOfMonth) &&
-              sale.dataVenda.isBefore(startOfNextMonth),
+              !sale.dataVenda.isBefore(twelveMonthsAgo) &&
+              !sale.dataVenda.isAfter(now),
         )
         .fold<double>(0, (total, sale) => total + sale.valorTotal);
     final receivables = sales.receivables.where((installment) {
@@ -66,8 +66,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         installment['data_vencimento']?.toString() ?? '',
       );
       return dueDate != null &&
-          !dueDate.isBefore(startOfMonth) &&
-          dueDate.isBefore(startOfNextMonth);
+          !dueDate.isBefore(twelveMonthsAgo) &&
+          !dueDate.isAfter(now);
     }).fold<double>(
       0,
       (total, installment) =>
@@ -116,16 +116,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
-                childAspectRatio: 1.2,
+                childAspectRatio: 1.0,
                 children: [
                   SummaryCard(
-                    title: 'Vendido (Mês)',
+                    title: 'Total comprado (últimos 12 meses)',
                     value: AppFormatters.formatCurrency(monthlySales),
                     icon: Icons.attach_money,
                     color: AppColors.primary,
                   ),
                   SummaryCard(
-                    title: 'A Receber (Mês)',
+                    title: 'Valor pendente (últimos 12 meses)',
                     value: AppFormatters.formatCurrency(receivables),
                     icon: Icons.account_balance_wallet,
                     color: AppColors.warning,
@@ -250,6 +250,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     side: const BorderSide(color: AppColors.primary),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const RemoteHistoryScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.cloud_download_outlined),
+                  label: const Text('Consultar histórico anterior'),
                 ),
               ),
             ],

@@ -5,6 +5,7 @@ import 'package:isar_community/isar.dart';
 import 'package:venstoque/models/cliente_model.dart';
 import 'package:venstoque/models/local/cliente_model.dart';
 import 'package:venstoque/models/local/venda_model.dart';
+import 'package:venstoque/models/local/sync_state_model.dart';
 import 'package:venstoque/providers/customer_provider.dart';
 
 void main() {
@@ -23,7 +24,13 @@ void main() {
       'venstoque_customer_provider_',
     );
     isar = await Isar.open(
-      [ClienteLocalSchema, VendaLocalSchema],
+      [
+        ClienteLocalSchema,
+        VendaLocalSchema,
+        SyncStateLocalSchema,
+        SyncMutationLocalSchema,
+        SyncConflictLocalSchema,
+      ],
       directory: directory.path,
       name: 'customer_provider_${DateTime.now().microsecondsSinceEpoch}',
     );

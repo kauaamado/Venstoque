@@ -7,6 +7,7 @@ import 'package:venstoque/models/local/cliente_model.dart';
 import 'package:venstoque/models/local/item_venda_model.dart';
 import 'package:venstoque/models/local/produto_model.dart';
 import 'package:venstoque/models/local/venda_model.dart';
+import 'package:venstoque/models/local/sync_state_model.dart';
 import 'package:venstoque/models/produto_model.dart';
 import 'package:venstoque/providers/stock_provider.dart';
 
@@ -31,6 +32,9 @@ void main() {
         ProdutoLocalSchema,
         VendaLocalSchema,
         ItemVendaLocalSchema,
+        SyncStateLocalSchema,
+        SyncMutationLocalSchema,
+        SyncConflictLocalSchema,
       ],
       directory: directory.path,
       name: 'product_provider_${DateTime.now().microsecondsSinceEpoch}',

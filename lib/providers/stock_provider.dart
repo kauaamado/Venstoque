@@ -7,6 +7,7 @@ import '../models/estoque_model.dart';
 import '../models/local/item_venda_model.dart';
 import '../models/local/produto_model.dart';
 import '../models/produto_model.dart';
+import '../services/sync_mutation_queue.dart';
 
 enum ProductDeleteResult { deleted, deactivated }
 
@@ -66,7 +67,10 @@ class StockProvider with ChangeNotifier {
         ..empresaId = _empresaId;
       _applyModel(local, product);
 
-      await _isar.writeTxn(() => _isar.produtoLocals.put(local));
+      await _isar.writeTxn(() async {
+        await _isar.produtoLocals.put(local);
+        await SyncMutationQueue.queueProduto(_isar, _empresaId, local);
+      });
     });
   }
 
@@ -85,6 +89,7 @@ class StockProvider with ChangeNotifier {
           ..syncRevision = current.syncRevision + 1
           ..syncPending = current.supabaseId != null;
         await _isar.produtoLocals.put(current);
+        await SyncMutationQueue.queueProduto(_isar, _empresaId, current);
       });
     });
   }
@@ -107,6 +112,22 @@ class StockProvider with ChangeNotifier {
           ..syncRevision = current.syncRevision + 1
           ..syncPending = current.supabaseId != null;
         await _isar.produtoLocals.put(current);
+        if (current.supabaseId == null) {
+          await SyncMutationQueue.queueProduto(_isar, _empresaId, current);
+        } else {
+          await SyncMutationQueue.queueEstoqueDelta(
+            isar: _isar,
+            tenantId: _empresaId,
+            produto: current,
+            delta: entry.quantidade,
+          );
+          await SyncMutationQueue.queueProduto(
+            _isar,
+            _empresaId,
+            current,
+            includeStock: false,
+          );
+        }
       });
     });
   }
@@ -133,6 +154,7 @@ class StockProvider with ChangeNotifier {
             ..syncRevision = current.syncRevision + 1
             ..syncPending = current.supabaseId != null;
           await _isar.produtoLocals.put(current);
+          await SyncMutationQueue.queueProduto(_isar, _empresaId, current);
           result = ProductDeleteResult.deactivated;
         } else if (current.supabaseId != null) {
           current
@@ -141,6 +163,7 @@ class StockProvider with ChangeNotifier {
             ..syncRevision = current.syncRevision + 1
             ..syncPending = false;
           await _isar.produtoLocals.put(current);
+          await SyncMutationQueue.queueProduto(_isar, _empresaId, current);
           result = ProductDeleteResult.deleted;
         } else {
           await _isar.produtoLocals.delete(localId);

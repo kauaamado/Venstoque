@@ -8,6 +8,7 @@ import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
 import '../../utils/sync_feedback.dart';
 import '../../widgets/sync_status_button.dart';
+import 'remote_history_screen.dart';
 
 class SalesHistoryScreen extends StatefulWidget {
   const SalesHistoryScreen({super.key});
@@ -45,10 +46,24 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Histórico de Vendas'),
+        title: const Text('Histórico de Vendas (últimos 12 meses)'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        actions: const [SyncStatusButton()],
+        actions: [
+          const SyncStatusButton(),
+          IconButton(
+            tooltip: 'Consultar histórico anterior',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const RemoteHistoryScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.cloud_download_outlined),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _refreshSales,
@@ -102,14 +117,26 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                             color: Colors.white,
                           ),
                         ),
-                        subtitle: Text(
-                          'Total: ${AppFormatters.formatCurrency(totals['venda'] ?? 0)} | '
-                          'Lucro: ${AppFormatters.formatCurrency(totals['lucro'] ?? 0)}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Colors.greenAccent,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        subtitle: Wrap(
+                          spacing: 12,
+                          runSpacing: 2,
+                          children: [
+                            _monthlyMetric(
+                              'Total',
+                              totals['venda'] ?? 0,
+                              Colors.white70,
+                            ),
+                            _monthlyMetric(
+                              'Lucro',
+                              totals['lucro'] ?? 0,
+                              Colors.greenAccent,
+                            ),
+                            _monthlyMetric(
+                              'Pendente',
+                              totals['pendente'] ?? 0,
+                              Colors.orangeAccent,
+                            ),
+                          ],
                         ),
                         children: events.map(_buildEventTile).toList(),
                       );
@@ -158,6 +185,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
           customer,
           productDescriptions.join(', '),
           paymentType == 'a_vista' ? 'À Vista' : 'Sem parcelas',
+          isPending: false,
         );
         continue;
       }
@@ -177,6 +205,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
           customer,
           productDescriptions.join(', '),
           'Parcelado (P: ${installment['numero_parcela']}/${installments.length})',
+          isPending: installment['status']?.toString() != 'pago',
         );
       }
     }
@@ -190,8 +219,9 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
     double profit,
     String customer,
     String products,
-    String payment,
-  ) {
+    String payment, {
+    required bool isPending,
+  }) {
     final monthKey = DateTime(date.year, date.month);
     grouped.putIfAbsent(monthKey, () => []).add({
       'comprador': customer,
@@ -202,10 +232,24 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
     });
     final month = totals.putIfAbsent(
       monthKey,
-      () => {'venda': 0, 'lucro': 0},
+      () => {'venda': 0, 'lucro': 0, 'pendente': 0},
     );
     month['venda'] = (month['venda'] ?? 0) + value;
     month['lucro'] = (month['lucro'] ?? 0) + profit;
+    if (isPending) {
+      month['pendente'] = (month['pendente'] ?? 0) + value;
+    }
+  }
+
+  Widget _monthlyMetric(String label, double value, Color color) {
+    return Text(
+      '$label: ${AppFormatters.formatCurrency(value)}',
+      style: TextStyle(
+        fontSize: 12,
+        color: color,
+        fontWeight: FontWeight.bold,
+      ),
+    );
   }
 
   Widget _buildEventTile(Map<String, dynamic> event) {

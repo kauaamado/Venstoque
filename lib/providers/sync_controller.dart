@@ -25,6 +25,9 @@ class SyncController extends ChangeNotifier with WidgetsBindingObserver {
   SyncStatus _status = SyncStatus.idle;
   SyncReport? _lastReport;
   Future<SyncReport>? _activeSync;
+  SyncScope? _activeScope;
+  SyncScope? _queuedScope;
+  Completer<SyncReport>? _queuedCompleter;
   DateTime? _lastAttemptAt;
   bool _started = false;
   bool _disposed = false;
@@ -42,14 +45,16 @@ class SyncController extends ChangeNotifier with WidgetsBindingObserver {
     });
   }
 
-  Future<SyncReport> syncNow() => _run(_gateway.syncAll);
+  Future<SyncReport> syncNow() => _run(SyncScope.all, _gateway.syncAll);
 
   Future<SyncReport> refreshCustomers() =>
-      _run(_gateway.syncCustomersFromServer);
+      _run(SyncScope.customers, _gateway.syncCustomersFromServer);
 
-  Future<SyncReport> refreshProducts() => _run(_gateway.syncProductsFromServer);
+  Future<SyncReport> refreshProducts() =>
+      _run(SyncScope.products, _gateway.syncProductsFromServer);
 
-  Future<SyncReport> refreshSales() => _run(_gateway.syncSalesFromServer);
+  Future<SyncReport> refreshSales() =>
+      _run(SyncScope.sales, _gateway.syncSalesFromServer);
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -62,9 +67,20 @@ class SyncController extends ChangeNotifier with WidgetsBindingObserver {
     unawaited(syncNow());
   }
 
-  Future<SyncReport> _run(Future<SyncReport> Function() operation) {
+  Future<SyncReport> _run(
+    SyncScope scope,
+    Future<SyncReport> Function() operation,
+  ) {
     final activeSync = _activeSync;
-    if (activeSync != null) return activeSync;
+    if (activeSync != null) {
+      if (_activeScope == SyncScope.all || _activeScope == scope) {
+        return activeSync;
+      }
+      _queuedScope =
+          _queuedScope == null ? scope : _mergeScopes(_queuedScope!, scope);
+      final queued = _queuedCompleter ??= Completer<SyncReport>();
+      return queued.future;
+    }
 
     _lastAttemptAt = _clock();
     _status = SyncStatus.syncing;
@@ -72,10 +88,39 @@ class SyncController extends ChangeNotifier with WidgetsBindingObserver {
 
     late final Future<SyncReport> currentSync;
     currentSync = _execute(operation).whenComplete(() {
-      if (identical(_activeSync, currentSync)) _activeSync = null;
+      final wasActive = identical(_activeSync, currentSync);
+      if (wasActive) {
+        _activeSync = null;
+        _activeScope = null;
+      }
+      final queuedScope = _queuedScope;
+      final queued = _queuedCompleter;
+      _queuedScope = null;
+      _queuedCompleter = null;
+      if (queuedScope != null && queued != null && !_disposed) {
+        final next = _run(queuedScope, _operationForScope(queuedScope));
+        next.then(queued.complete, onError: queued.completeError);
+      }
     });
     _activeSync = currentSync;
+    _activeScope = scope;
     return currentSync;
+  }
+
+  Future<SyncReport> Function() _operationForScope(SyncScope scope) {
+    return switch (scope) {
+      SyncScope.all => _gateway.syncAll,
+      SyncScope.customers => _gateway.syncCustomersFromServer,
+      SyncScope.products => _gateway.syncProductsFromServer,
+      SyncScope.sales => _gateway.syncSalesFromServer,
+    };
+  }
+
+  SyncScope _mergeScopes(SyncScope first, SyncScope second) {
+    if (first == SyncScope.all || second == SyncScope.all) {
+      return SyncScope.all;
+    }
+    return SyncScope.all;
   }
 
   Future<SyncReport> _execute(

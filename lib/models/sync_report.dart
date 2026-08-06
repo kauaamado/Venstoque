@@ -24,6 +24,9 @@ class SyncReport {
     required this.saved,
     required this.deferred,
     required this.issues,
+    this.pages = 0,
+    this.conflicts = 0,
+    this.pendingAfter = 0,
   });
 
   final SyncScope scope;
@@ -34,6 +37,11 @@ class SyncReport {
   final int saved;
   final int deferred;
   final List<SyncIssue> issues;
+  final int pages;
+  final int conflicts;
+  final int pendingAfter;
+
+  Duration get duration => completedAt.difference(startedAt);
 
   int get failed => issues.length;
 
@@ -55,6 +63,9 @@ class SyncReportBuilder {
   int received = 0;
   int saved = 0;
   int deferred = 0;
+  int pages = 0;
+  int conflicts = 0;
+  int pendingAfter = 0;
   final List<SyncIssue> issues = [];
 
   SyncReport build() {
@@ -67,6 +78,9 @@ class SyncReportBuilder {
       saved: saved,
       deferred: deferred,
       issues: List.unmodifiable(issues),
+      pages: pages,
+      conflicts: conflicts,
+      pendingAfter: pendingAfter,
     );
   }
 }

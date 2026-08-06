@@ -40,6 +40,8 @@ class SummaryCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppColors.textSecondary,
               fontSize: 12,

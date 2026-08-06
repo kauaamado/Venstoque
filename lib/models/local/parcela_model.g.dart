@@ -17,50 +17,65 @@ const ParcelaLocalSchema = CollectionSchema(
   name: r'ParcelaLocal',
   id: -4154994121289351938,
   properties: {
-    r'dataPagamento': PropertySchema(
+    r'bootstrapGeneration': PropertySchema(
       id: 0,
+      name: r'bootstrapGeneration',
+      type: IsarType.long,
+    ),
+    r'dataPagamento': PropertySchema(
+      id: 1,
       name: r'dataPagamento',
       type: IsarType.dateTime,
     ),
     r'dataVencimento': PropertySchema(
-      id: 1,
+      id: 2,
       name: r'dataVencimento',
       type: IsarType.dateTime,
     ),
     r'empresaId': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'empresaId',
       type: IsarType.string,
     ),
     r'numeroParcela': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'numeroParcela',
       type: IsarType.long,
     ),
+    r'rowVersion': PropertySchema(
+      id: 5,
+      name: r'rowVersion',
+      type: IsarType.long,
+    ),
     r'status': PropertySchema(
-      id: 4,
+      id: 6,
       name: r'status',
       type: IsarType.string,
     ),
     r'supabaseId': PropertySchema(
-      id: 5,
+      id: 7,
       name: r'supabaseId',
       type: IsarType.string,
     ),
     r'syncPending': PropertySchema(
-      id: 6,
+      id: 8,
       name: r'syncPending',
       type: IsarType.bool,
     ),
     r'syncRevision': PropertySchema(
-      id: 7,
+      id: 9,
       name: r'syncRevision',
       type: IsarType.long,
     ),
     r'valor': PropertySchema(
-      id: 8,
+      id: 10,
       name: r'valor',
       type: IsarType.double,
+    ),
+    r'vendaLocalId': PropertySchema(
+      id: 11,
+      name: r'vendaLocalId',
+      type: IsarType.long,
     )
   },
   estimateSize: _parcelaLocalEstimateSize,
@@ -92,6 +107,19 @@ const ParcelaLocalSchema = CollectionSchema(
           name: r'empresaId',
           type: IndexType.hash,
           caseSensitive: true,
+        )
+      ],
+    ),
+    r'vendaLocalId': IndexSchema(
+      id: 1187682264922099292,
+      name: r'vendaLocalId',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'vendaLocalId',
+          type: IndexType.value,
+          caseSensitive: false,
         )
       ],
     )
@@ -139,15 +167,18 @@ void _parcelaLocalSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeDateTime(offsets[0], object.dataPagamento);
-  writer.writeDateTime(offsets[1], object.dataVencimento);
-  writer.writeString(offsets[2], object.empresaId);
-  writer.writeLong(offsets[3], object.numeroParcela);
-  writer.writeString(offsets[4], object.status);
-  writer.writeString(offsets[5], object.supabaseId);
-  writer.writeBool(offsets[6], object.syncPending);
-  writer.writeLong(offsets[7], object.syncRevision);
-  writer.writeDouble(offsets[8], object.valor);
+  writer.writeLong(offsets[0], object.bootstrapGeneration);
+  writer.writeDateTime(offsets[1], object.dataPagamento);
+  writer.writeDateTime(offsets[2], object.dataVencimento);
+  writer.writeString(offsets[3], object.empresaId);
+  writer.writeLong(offsets[4], object.numeroParcela);
+  writer.writeLong(offsets[5], object.rowVersion);
+  writer.writeString(offsets[6], object.status);
+  writer.writeString(offsets[7], object.supabaseId);
+  writer.writeBool(offsets[8], object.syncPending);
+  writer.writeLong(offsets[9], object.syncRevision);
+  writer.writeDouble(offsets[10], object.valor);
+  writer.writeLong(offsets[11], object.vendaLocalId);
 }
 
 ParcelaLocal _parcelaLocalDeserialize(
@@ -157,16 +188,19 @@ ParcelaLocal _parcelaLocalDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = ParcelaLocal();
-  object.dataPagamento = reader.readDateTimeOrNull(offsets[0]);
-  object.dataVencimento = reader.readDateTime(offsets[1]);
-  object.empresaId = reader.readStringOrNull(offsets[2]);
+  object.bootstrapGeneration = reader.readLong(offsets[0]);
+  object.dataPagamento = reader.readDateTimeOrNull(offsets[1]);
+  object.dataVencimento = reader.readDateTime(offsets[2]);
+  object.empresaId = reader.readStringOrNull(offsets[3]);
   object.id = id;
-  object.numeroParcela = reader.readLong(offsets[3]);
-  object.status = reader.readString(offsets[4]);
-  object.supabaseId = reader.readStringOrNull(offsets[5]);
-  object.syncPending = reader.readBool(offsets[6]);
-  object.syncRevision = reader.readLong(offsets[7]);
-  object.valor = reader.readDouble(offsets[8]);
+  object.numeroParcela = reader.readLong(offsets[4]);
+  object.rowVersion = reader.readLong(offsets[5]);
+  object.status = reader.readString(offsets[6]);
+  object.supabaseId = reader.readStringOrNull(offsets[7]);
+  object.syncPending = reader.readBool(offsets[8]);
+  object.syncRevision = reader.readLong(offsets[9]);
+  object.valor = reader.readDouble(offsets[10]);
+  object.vendaLocalId = reader.readLongOrNull(offsets[11]);
   return object;
 }
 
@@ -178,23 +212,29 @@ P _parcelaLocalDeserializeProp<P>(
 ) {
   switch (propertyId) {
     case 0:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 1:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 2:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readDateTime(offset)) as P;
     case 3:
-      return (reader.readLong(offset)) as P;
-    case 4:
-      return (reader.readString(offset)) as P;
-    case 5:
       return (reader.readStringOrNull(offset)) as P;
-    case 6:
-      return (reader.readBool(offset)) as P;
-    case 7:
+    case 4:
       return (reader.readLong(offset)) as P;
+    case 5:
+      return (reader.readLong(offset)) as P;
+    case 6:
+      return (reader.readString(offset)) as P;
+    case 7:
+      return (reader.readStringOrNull(offset)) as P;
     case 8:
+      return (reader.readBool(offset)) as P;
+    case 9:
+      return (reader.readLong(offset)) as P;
+    case 10:
       return (reader.readDouble(offset)) as P;
+    case 11:
+      return (reader.readLongOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -219,6 +259,14 @@ extension ParcelaLocalQueryWhereSort
   QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterWhere> anyId() {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(const IdWhereClause.any());
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterWhere> anyVendaLocalId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(
+        const IndexWhereClause.any(indexName: r'vendaLocalId'),
+      );
     });
   }
 }
@@ -425,10 +473,181 @@ extension ParcelaLocalQueryWhere
       }
     });
   }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterWhereClause>
+      vendaLocalIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'vendaLocalId',
+        value: [null],
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterWhereClause>
+      vendaLocalIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'vendaLocalId',
+        lower: [null],
+        includeLower: false,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterWhereClause>
+      vendaLocalIdEqualTo(int? vendaLocalId) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'vendaLocalId',
+        value: [vendaLocalId],
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterWhereClause>
+      vendaLocalIdNotEqualTo(int? vendaLocalId) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'vendaLocalId',
+              lower: [],
+              upper: [vendaLocalId],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'vendaLocalId',
+              lower: [vendaLocalId],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'vendaLocalId',
+              lower: [vendaLocalId],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'vendaLocalId',
+              lower: [],
+              upper: [vendaLocalId],
+              includeUpper: false,
+            ));
+      }
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterWhereClause>
+      vendaLocalIdGreaterThan(
+    int? vendaLocalId, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'vendaLocalId',
+        lower: [vendaLocalId],
+        includeLower: include,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterWhereClause>
+      vendaLocalIdLessThan(
+    int? vendaLocalId, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'vendaLocalId',
+        lower: [],
+        upper: [vendaLocalId],
+        includeUpper: include,
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterWhereClause>
+      vendaLocalIdBetween(
+    int? lowerVendaLocalId,
+    int? upperVendaLocalId, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'vendaLocalId',
+        lower: [lowerVendaLocalId],
+        includeLower: includeLower,
+        upper: [upperVendaLocalId],
+        includeUpper: includeUpper,
+      ));
+    });
+  }
 }
 
 extension ParcelaLocalQueryFilter
     on QueryBuilder<ParcelaLocal, ParcelaLocal, QFilterCondition> {
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      bootstrapGenerationEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'bootstrapGeneration',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      bootstrapGenerationGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'bootstrapGeneration',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      bootstrapGenerationLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'bootstrapGeneration',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      bootstrapGenerationBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'bootstrapGeneration',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
   QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
       dataPagamentoIsNull() {
     return QueryBuilder.apply(this, (query) {
@@ -814,6 +1033,62 @@ extension ParcelaLocalQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
         property: r'numeroParcela',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      rowVersionEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'rowVersion',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      rowVersionGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'rowVersion',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      rowVersionLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'rowVersion',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      rowVersionBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'rowVersion',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
@@ -1239,6 +1514,80 @@ extension ParcelaLocalQueryFilter
       ));
     });
   }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      vendaLocalIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'vendaLocalId',
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      vendaLocalIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'vendaLocalId',
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      vendaLocalIdEqualTo(int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'vendaLocalId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      vendaLocalIdGreaterThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'vendaLocalId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      vendaLocalIdLessThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'vendaLocalId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterFilterCondition>
+      vendaLocalIdBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'vendaLocalId',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
 }
 
 extension ParcelaLocalQueryObject
@@ -1263,6 +1612,20 @@ extension ParcelaLocalQueryLinks
 
 extension ParcelaLocalQuerySortBy
     on QueryBuilder<ParcelaLocal, ParcelaLocal, QSortBy> {
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy>
+      sortByBootstrapGeneration() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'bootstrapGeneration', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy>
+      sortByBootstrapGenerationDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'bootstrapGeneration', Sort.desc);
+    });
+  }
+
   QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy> sortByDataPagamento() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dataPagamento', Sort.asc);
@@ -1312,6 +1675,19 @@ extension ParcelaLocalQuerySortBy
       sortByNumeroParcelaDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'numeroParcela', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy> sortByRowVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'rowVersion', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy>
+      sortByRowVersionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'rowVersion', Sort.desc);
     });
   }
 
@@ -1377,10 +1753,37 @@ extension ParcelaLocalQuerySortBy
       return query.addSortBy(r'valor', Sort.desc);
     });
   }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy> sortByVendaLocalId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'vendaLocalId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy>
+      sortByVendaLocalIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'vendaLocalId', Sort.desc);
+    });
+  }
 }
 
 extension ParcelaLocalQuerySortThenBy
     on QueryBuilder<ParcelaLocal, ParcelaLocal, QSortThenBy> {
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy>
+      thenByBootstrapGeneration() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'bootstrapGeneration', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy>
+      thenByBootstrapGenerationDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'bootstrapGeneration', Sort.desc);
+    });
+  }
+
   QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy> thenByDataPagamento() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dataPagamento', Sort.asc);
@@ -1442,6 +1845,19 @@ extension ParcelaLocalQuerySortThenBy
       thenByNumeroParcelaDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'numeroParcela', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy> thenByRowVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'rowVersion', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy>
+      thenByRowVersionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'rowVersion', Sort.desc);
     });
   }
 
@@ -1507,10 +1923,30 @@ extension ParcelaLocalQuerySortThenBy
       return query.addSortBy(r'valor', Sort.desc);
     });
   }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy> thenByVendaLocalId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'vendaLocalId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QAfterSortBy>
+      thenByVendaLocalIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'vendaLocalId', Sort.desc);
+    });
+  }
 }
 
 extension ParcelaLocalQueryWhereDistinct
     on QueryBuilder<ParcelaLocal, ParcelaLocal, QDistinct> {
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QDistinct>
+      distinctByBootstrapGeneration() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'bootstrapGeneration');
+    });
+  }
+
   QueryBuilder<ParcelaLocal, ParcelaLocal, QDistinct>
       distinctByDataPagamento() {
     return QueryBuilder.apply(this, (query) {
@@ -1536,6 +1972,12 @@ extension ParcelaLocalQueryWhereDistinct
       distinctByNumeroParcela() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'numeroParcela');
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QDistinct> distinctByRowVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'rowVersion');
     });
   }
 
@@ -1570,6 +2012,12 @@ extension ParcelaLocalQueryWhereDistinct
       return query.addDistinctBy(r'valor');
     });
   }
+
+  QueryBuilder<ParcelaLocal, ParcelaLocal, QDistinct> distinctByVendaLocalId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'vendaLocalId');
+    });
+  }
 }
 
 extension ParcelaLocalQueryProperty
@@ -1577,6 +2025,13 @@ extension ParcelaLocalQueryProperty
   QueryBuilder<ParcelaLocal, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, int, QQueryOperations>
+      bootstrapGenerationProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'bootstrapGeneration');
     });
   }
 
@@ -1603,6 +2058,12 @@ extension ParcelaLocalQueryProperty
   QueryBuilder<ParcelaLocal, int, QQueryOperations> numeroParcelaProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'numeroParcela');
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, int, QQueryOperations> rowVersionProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'rowVersion');
     });
   }
 
@@ -1633,6 +2094,12 @@ extension ParcelaLocalQueryProperty
   QueryBuilder<ParcelaLocal, double, QQueryOperations> valorProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'valor');
+    });
+  }
+
+  QueryBuilder<ParcelaLocal, int?, QQueryOperations> vendaLocalIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'vendaLocalId');
     });
   }
 }

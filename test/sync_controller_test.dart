@@ -9,6 +9,14 @@ import 'package:venstoque/services/sync_gateway.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('construir o controller não inicia sincronização automática', () {
+    final gateway = _FakeSyncGateway();
+    final controller = SyncController(gateway);
+
+    expect(gateway.allCalls, 0);
+    controller.dispose();
+  });
+
   test('publica sucesso e compartilha uma execução concorrente', () async {
     final gateway = _FakeSyncGateway()..holdNextRun();
     final controller = SyncController(gateway);
@@ -26,6 +34,26 @@ void main() {
     expect(result.outcome, SyncOutcome.success);
     expect(controller.status, SyncStatus.success);
     expect(controller.lastReport, same(result));
+    controller.dispose();
+  });
+
+  test('enfileira escopos diferentes e executa o segundo após o primeiro',
+      () async {
+    final gateway = _ScopedFakeSyncGateway();
+    final controller = SyncController(gateway);
+
+    final customers = controller.refreshCustomers();
+    final products = controller.refreshProducts();
+
+    expect(gateway.customerCalls, 1);
+    expect(gateway.productCalls, 0);
+
+    gateway.customerCompleter.complete(_report());
+    await customers;
+    expect(gateway.productCalls, 1);
+
+    gateway.productCompleter.complete(_report());
+    await products;
     controller.dispose();
   });
 
@@ -128,4 +156,29 @@ class _FakeSyncGateway implements SyncGateway {
 
   @override
   Future<SyncReport> syncSalesFromServer() => Future.value(nextReport);
+}
+
+class _ScopedFakeSyncGateway implements SyncGateway {
+  final customerCompleter = Completer<SyncReport>();
+  final productCompleter = Completer<SyncReport>();
+  int customerCalls = 0;
+  int productCalls = 0;
+
+  @override
+  Future<SyncReport> syncAll() => Future.value(_report());
+
+  @override
+  Future<SyncReport> syncCustomersFromServer() {
+    customerCalls++;
+    return customerCompleter.future;
+  }
+
+  @override
+  Future<SyncReport> syncProductsFromServer() {
+    productCalls++;
+    return productCompleter.future;
+  }
+
+  @override
+  Future<SyncReport> syncSalesFromServer() => Future.value(_report());
 }

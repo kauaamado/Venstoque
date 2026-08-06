@@ -14,6 +14,12 @@ class ParcelaLocal {
   @Index()
   String? empresaId;
 
+  @Index()
+  int? vendaLocalId;
+
+  int rowVersion = 0;
+  int bootstrapGeneration = 0;
+
   final venda = IsarLink<VendaLocal>();
   int numeroParcela = 0;
   double valor = 0;
